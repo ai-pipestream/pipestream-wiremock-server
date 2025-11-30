@@ -39,6 +39,12 @@ jobs:
           GPG_SIGNING_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: ./gradlew publishAllPublicationsToCentralPortalSnapshots --no-daemon
 
+      - name: Publish Snapshots to GitHub Packages
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./gradlew publishMavenPublicationToGitHubPackagesRepository --no-daemon
+
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
