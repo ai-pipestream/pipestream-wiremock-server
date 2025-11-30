@@ -135,7 +135,7 @@ jobs:
             --no-daemon
           
           ./gradlew jib \
-            -Djib.to.image=docker.io/aipipestream/pipestream-wiremock-server \
+            -Djib.to.image=docker.io/pipestreamai/pipestream-wiremock-server \
             -Djib.to.tags=latest,$VERSION \
             -Djib.to.auth.username=${{ secrets.DOCKER_USERNAME }} \
             -Djib.to.auth.password=${{ secrets.DOCKER_PASSWORD }} \
