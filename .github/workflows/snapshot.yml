@@ -25,6 +25,11 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
+      - name: Set up Buf CLI
+        uses: bufbuild/buf-setup-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
