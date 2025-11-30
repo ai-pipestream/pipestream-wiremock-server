@@ -5,15 +5,15 @@ import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
-import ai.pipestream.platform.registration.PlatformRegistrationGrpc;
-import ai.pipestream.platform.registration.RegistrationEvent;
-import ai.pipestream.platform.registration.EventType;
-import ai.pipestream.platform.registration.ServiceRegistrationRequest;
-import ai.pipestream.platform.registration.ModuleRegistrationRequest;
-import ai.pipestream.platform.registration.ServiceListResponse;
-import ai.pipestream.platform.registration.ModuleListResponse;
-import ai.pipestream.platform.registration.ServiceDetails;
-import ai.pipestream.platform.registration.ModuleDetails;
+import ai.pipestream.platform.registration.v1.PlatformRegistrationServiceGrpc;
+import ai.pipestream.platform.registration.v1.RegistrationEvent;
+import ai.pipestream.platform.registration.v1.EventType;
+import ai.pipestream.platform.registration.v1.ServiceRegistrationRequest;
+import ai.pipestream.platform.registration.v1.ModuleRegistrationRequest;
+import ai.pipestream.platform.registration.v1.ServiceListResponse;
+import ai.pipestream.platform.registration.v1.ModuleListResponse;
+import ai.pipestream.platform.registration.v1.ServiceDetails;
+import ai.pipestream.platform.registration.v1.ModuleDetails;
 import com.google.protobuf.Empty;
 import com.google.protobuf.Timestamp;
 import org.slf4j.Logger;
@@ -90,7 +90,7 @@ public class DirectWireMockGrpcServer {
      * delays
      * to test the client's ability to handle streams.
      */
-    private class PlatformRegistrationServiceImpl extends PlatformRegistrationGrpc.PlatformRegistrationImplBase {
+    private class PlatformRegistrationServiceImpl extends PlatformRegistrationServiceGrpc.PlatformRegistrationServiceImplBase {
 
         @Override
         public void registerService(ServiceRegistrationRequest request,
@@ -100,7 +100,7 @@ public class DirectWireMockGrpcServer {
                 // Simulate the 6-phase service registration process
                 LOG.info("DirectWireMockGrpcServer: Emitting STARTED event.");
                 responseObserver.onNext(RegistrationEvent.newBuilder()
-                        .setEventType(EventType.STARTED)
+                        .setEventType(EventType.EVENT_TYPE_STARTED)
                         .setMessage("Starting service registration")
                         .build());
 
@@ -108,7 +108,7 @@ public class DirectWireMockGrpcServer {
 
                 LOG.info("DirectWireMockGrpcServer: Emitting VALIDATED event.");
                 responseObserver.onNext(RegistrationEvent.newBuilder()
-                        .setEventType(EventType.VALIDATED)
+                        .setEventType(EventType.EVENT_TYPE_VALIDATED)
                         .setMessage("Service registration request validated")
                         .build());
 
@@ -116,7 +116,7 @@ public class DirectWireMockGrpcServer {
 
                 LOG.info("DirectWireMockGrpcServer: Emitting CONSUL_REGISTERED event.");
                 responseObserver.onNext(RegistrationEvent.newBuilder()
-                        .setEventType(EventType.CONSUL_REGISTERED)
+                        .setEventType(EventType.EVENT_TYPE_CONSUL_REGISTERED)
                         .setMessage("Service registered with Consul")
                         .build());
 
@@ -124,7 +124,7 @@ public class DirectWireMockGrpcServer {
 
                 LOG.info("DirectWireMockGrpcServer: Emitting HEALTH_CHECK_CONFIGURED event.");
                 responseObserver.onNext(RegistrationEvent.newBuilder()
-                        .setEventType(EventType.HEALTH_CHECK_CONFIGURED)
+                        .setEventType(EventType.EVENT_TYPE_HEALTH_CHECK_CONFIGURED)
                         .setMessage("Health check configured")
                         .build());
 
@@ -132,7 +132,7 @@ public class DirectWireMockGrpcServer {
 
                 LOG.info("DirectWireMockGrpcServer: Emitting CONSUL_HEALTHY event.");
                 responseObserver.onNext(RegistrationEvent.newBuilder()
-                        .setEventType(EventType.CONSUL_HEALTHY)
+                        .setEventType(EventType.EVENT_TYPE_CONSUL_HEALTHY)
                         .setMessage("Service reported healthy by Consul")
                         .build());
 
@@ -140,7 +140,7 @@ public class DirectWireMockGrpcServer {
 
                 LOG.info("DirectWireMockGrpcServer: Emitting COMPLETED event.");
                 responseObserver.onNext(RegistrationEvent.newBuilder()
-                        .setEventType(EventType.COMPLETED)
+                        .setEventType(EventType.EVENT_TYPE_COMPLETED)
                         .setMessage("Service registration completed successfully")
                         .build());
 
@@ -160,10 +160,10 @@ public class DirectWireMockGrpcServer {
             LOG.info("DirectWireMockGrpcServer: registerModule called for: " + request.getModuleName());
             try {
                 EventType[] phases = {
-                        EventType.STARTED, EventType.VALIDATED, EventType.CONSUL_REGISTERED,
-                        EventType.HEALTH_CHECK_CONFIGURED, EventType.CONSUL_HEALTHY,
-                        EventType.METADATA_RETRIEVED, EventType.SCHEMA_VALIDATED,
-                        EventType.DATABASE_SAVED, EventType.APICURIO_REGISTERED, EventType.COMPLETED
+                        EventType.EVENT_TYPE_STARTED, EventType.EVENT_TYPE_VALIDATED, EventType.EVENT_TYPE_CONSUL_REGISTERED,
+                        EventType.EVENT_TYPE_HEALTH_CHECK_CONFIGURED, EventType.EVENT_TYPE_CONSUL_HEALTHY,
+                        EventType.EVENT_TYPE_METADATA_RETRIEVED, EventType.EVENT_TYPE_SCHEMA_VALIDATED,
+                        EventType.EVENT_TYPE_DATABASE_SAVED, EventType.EVENT_TYPE_APICURIO_REGISTERED, EventType.EVENT_TYPE_COMPLETED
                 };
 
                 String[] messages = {

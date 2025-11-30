@@ -24,7 +24,8 @@ scmVersion {
 }
 
 group = 'ai.pipestream'
-version = scmVersion.version
+// version = scmVersion.version
+version = '0.5.0-SNAPSHOT'
 
 repositories {
     mavenLocal()
@@ -41,10 +42,35 @@ repositories {
 def protobufVersion = libs.versions.protobuf.java.get()
 def grpcVersion = libs.versions.grpc.get()
 
+// Define where we want to download the schemas from Buf Registry
+def bufExportDir = layout.buildDirectory.dir("generated/buf-protos")
+
 configurations.configureEach {
     resolutionStrategy {
         force "com.google.protobuf:protobuf-java:${protobufVersion}"
         force "com.google.protobuf:protobuf-java-util:${protobufVersion}"
+    }
+}
+
+// Task to sync proto files from Buf Schema Registry
+// This replaces the Maven artifact dependency on pipestream-protos
+tasks.register('syncProtos', Exec) {
+    group = 'protobuf'
+    description = 'Exports proto files from the Buf Registry'
+
+    // Buf module to fetch - can be made configurable via -PbufModule or -PbufVersion
+    def bufModule = project.findProperty('bufModule') ?: 'buf.build/pipestreamai/platform'
+
+    // Command: buf export <module> --output <dir>
+    // This downloads the raw .proto files, preserving the directory structure
+    commandLine 'buf', 'export', bufModule, '--output', bufExportDir.get().asFile.path
+
+    // Gradle will skip this if the output exists and inputs haven't changed
+    outputs.dir(bufExportDir)
+
+    doFirst {
+        // Ensure output directory exists
+        bufExportDir.get().asFile.mkdirs()
     }
 }
 
@@ -53,9 +79,9 @@ dependencies {
     implementation(libs.wiremock.grpc.extension.standalone) {
         exclude group: 'com.google.protobuf', module: 'protobuf-java'
     }
-    
+
     implementation libs.slf4j.simple
-    
+
     implementation libs.protobuf.java
     implementation libs.protobuf.java.util
 
@@ -65,9 +91,8 @@ dependencies {
     implementation libs.grpc.stub
     compileOnly libs.javax.annotation.api
 
-    // Depend on the protos to extract them
-    protobuf libs.pipestream.protos
-    // We need standard imports as well
+    // Proto files are now fetched from Buf Registry via syncProtos task
+    // Keep Google Common Protos as library to avoid conflicts with protobuf-java-util
     protobuf libs.proto.google.common.protos
 }
 
@@ -95,10 +120,15 @@ protobuf {
     }
 }
 
-// Add the generated resources to the main source set
+// Configure source sets
 sourceSets {
     main {
+        proto {
+            // Tell Gradle's Protobuf Plugin to look in the buf-exported folder
+            srcDir bufExportDir
+        }
         resources {
+            // Add the generated descriptor set to resources
             srcDir layout.buildDirectory.dir("generated/resources/proto/main")
         }
     }
@@ -108,8 +138,11 @@ tasks.named('processResources').configure {
     dependsOn 'generateProto'
 }
 
-// Ensure the directory exists
+// Wire up task dependencies
+// Before you generate Java code, you must fetch the protos from Buf
 tasks.named('generateProto').configure {
+    dependsOn 'syncProtos'
+
     doFirst {
         mkdir layout.buildDirectory.dir("generated/resources/proto/main/META-INF/grpc").get().asFile
     }

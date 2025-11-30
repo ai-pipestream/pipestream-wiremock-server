@@ -5,7 +5,6 @@ slf4j = "2.0.17"
 protobuf-java = "4.33.1"
 grpc = "1.77.0"
 javax-annotation = "1.3.2"
-pipestream-protos = "0.3.0"
 proto-google-common-protos = "2.63.1"
 
 # Plugins
@@ -24,7 +23,6 @@ grpc-netty = { module = "io.grpc:grpc-netty", version.ref = "grpc" }
 grpc-protobuf = { module = "io.grpc:grpc-protobuf", version.ref = "grpc" }
 grpc-stub = { module = "io.grpc:grpc-stub", version.ref = "grpc" }
 javax-annotation-api = { module = "javax.annotation:javax.annotation-api", version.ref = "javax-annotation" }
-pipestream-protos = { module = "ai.pipestream:pipestream-protos", version.ref = "pipestream-protos" }
 proto-google-common-protos = { module = "com.google.api.grpc:proto-google-common-protos", version.ref = "proto-google-common-protos" }
 
 [plugins]
