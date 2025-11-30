@@ -1,7 +1,7 @@
 # Use JIB to build the image, this Dockerfile is just for documentation or manual builds if needed
 # The build.gradle is configured to use Jib which is preferred.
 
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:25-jre-alpine
 
 WORKDIR /app
 
