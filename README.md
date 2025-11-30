@@ -2,9 +2,39 @@
 
 A specialized mock server designed for testing the **Pipestream AI** platform. It combines a standard WireMock instance with a custom Netty-based gRPC server to handle complex, streaming scenarios that are difficult to mock with standard tools.
 
+This project is distributed as a Docker container and is critical for integration testing of gRPC clients.
+
+## CI/CD & artifacts
+
+| Artifact | Registry | Image / Dependency |
+| :--- | :--- | :--- |
+| **Docker Image** | GitHub Container Registry (GHCR) | `ghcr.io/ai-pipestream/pipestream-wiremock-server:latest` |
+| **JAR** | Maven Central | `ai.pipestream:pipestream-wiremock-server` |
+
 ## Architecture
 
 This application runs two servers simultaneously:
+
+```mermaid
+graph TD
+    Client[Test / Client]
+    
+    subgraph "Pipestream WireMock Server Container"
+        WM[Standard WireMock Server]
+        GRPC[Direct Netty gRPC Server]
+        
+        WM -- "Port 8080 (HTTP/Unary gRPC)" --> Client
+        GRPC -- "Port 50052 (Streaming gRPC)" --> Client
+    end
+    
+    Client -->|HTTP Requests / JSON| WM
+    Client -->|Unary gRPC Calls| WM
+    Client -->|Streaming gRPC Calls| GRPC
+    
+    note["Shared State: Mocks & Stubs"]
+    WM -.-> note
+    GRPC -.-> note
+```
 
 1.  **Standard WireMock Server (Port 8080)**
     *   **Purpose**: Handles standard HTTP mocks and simple unary gRPC calls.
@@ -18,16 +48,16 @@ This application runs two servers simultaneously:
 
 ## Usage
 
+### Running via Docker (Recommended)
+
+```bash
+docker run -p 8080:8080 -p 50052:50052 ghcr.io/ai-pipestream/pipestream-wiremock-server:latest
+```
+
 ### Running Locally
 
 ```bash
 ./gradlew run
-```
-
-### Running via Docker
-
-```bash
-docker run -p 8080:8080 -p 50052:50052 ai-pipestream/pipestream-wiremock-server:latest
 ```
 
 ## Mocked Services
@@ -51,4 +81,5 @@ The Direct gRPC Server implements the `PlatformRegistrationService` to test the 
 ## Development
 
 *   **Build**: `./gradlew build`
-*   **Docker Build**: `./gradlew jibDockerBuild`
+*   **Docker Build (Local)**: `./gradlew jibDockerBuild`
+*   **Release**: Versioning is handled via `axion-release` plugin. Tags created in Git trigger CI builds.
