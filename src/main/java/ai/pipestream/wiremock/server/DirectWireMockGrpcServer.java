@@ -8,13 +8,16 @@ import io.grpc.stub.StreamObserver;
 import ai.pipestream.platform.registration.v1.PlatformRegistrationServiceGrpc;
 import ai.pipestream.platform.registration.v1.RegistrationEvent;
 import ai.pipestream.platform.registration.v1.EventType;
-import ai.pipestream.platform.registration.v1.ServiceRegistrationRequest;
-import ai.pipestream.platform.registration.v1.ModuleRegistrationRequest;
-import ai.pipestream.platform.registration.v1.ServiceListResponse;
-import ai.pipestream.platform.registration.v1.ModuleListResponse;
-import ai.pipestream.platform.registration.v1.ServiceDetails;
-import ai.pipestream.platform.registration.v1.ModuleDetails;
-import com.google.protobuf.Empty;
+import ai.pipestream.platform.registration.v1.RegisterServiceRequest;
+import ai.pipestream.platform.registration.v1.RegisterServiceResponse;
+import ai.pipestream.platform.registration.v1.RegisterModuleRequest;
+import ai.pipestream.platform.registration.v1.RegisterModuleResponse;
+import ai.pipestream.platform.registration.v1.ListServicesRequest;
+import ai.pipestream.platform.registration.v1.ListServicesResponse;
+import ai.pipestream.platform.registration.v1.ListModulesRequest;
+import ai.pipestream.platform.registration.v1.ListModulesResponse;
+import ai.pipestream.platform.registration.v1.GetServiceResponse;
+import ai.pipestream.platform.registration.v1.GetModuleResponse;
 import com.google.protobuf.Timestamp;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -93,55 +96,67 @@ public class DirectWireMockGrpcServer {
     private class PlatformRegistrationServiceImpl extends PlatformRegistrationServiceGrpc.PlatformRegistrationServiceImplBase {
 
         @Override
-        public void registerService(ServiceRegistrationRequest request,
-                StreamObserver<RegistrationEvent> responseObserver) {
+        public void registerService(RegisterServiceRequest request,
+                StreamObserver<RegisterServiceResponse> responseObserver) {
             LOG.info("DirectWireMockGrpcServer: registerService called for: " + request.getServiceName());
             try {
                 // Simulate the 6-phase service registration process
                 LOG.info("DirectWireMockGrpcServer: Emitting STARTED event.");
-                responseObserver.onNext(RegistrationEvent.newBuilder()
-                        .setEventType(EventType.EVENT_TYPE_STARTED)
-                        .setMessage("Starting service registration")
+                responseObserver.onNext(RegisterServiceResponse.newBuilder()
+                        .setEvent(RegistrationEvent.newBuilder()
+                                .setEventType(EventType.EVENT_TYPE_STARTED)
+                                .setMessage("Starting service registration")
+                                .build())
                         .build());
 
                 Thread.sleep(50);
 
                 LOG.info("DirectWireMockGrpcServer: Emitting VALIDATED event.");
-                responseObserver.onNext(RegistrationEvent.newBuilder()
-                        .setEventType(EventType.EVENT_TYPE_VALIDATED)
-                        .setMessage("Service registration request validated")
+                responseObserver.onNext(RegisterServiceResponse.newBuilder()
+                        .setEvent(RegistrationEvent.newBuilder()
+                                .setEventType(EventType.EVENT_TYPE_VALIDATED)
+                                .setMessage("Service registration request validated")
+                                .build())
                         .build());
 
                 Thread.sleep(50);
 
                 LOG.info("DirectWireMockGrpcServer: Emitting CONSUL_REGISTERED event.");
-                responseObserver.onNext(RegistrationEvent.newBuilder()
-                        .setEventType(EventType.EVENT_TYPE_CONSUL_REGISTERED)
-                        .setMessage("Service registered with Consul")
+                responseObserver.onNext(RegisterServiceResponse.newBuilder()
+                        .setEvent(RegistrationEvent.newBuilder()
+                                .setEventType(EventType.EVENT_TYPE_CONSUL_REGISTERED)
+                                .setMessage("Service registered with Consul")
+                                .build())
                         .build());
 
                 Thread.sleep(50);
 
                 LOG.info("DirectWireMockGrpcServer: Emitting HEALTH_CHECK_CONFIGURED event.");
-                responseObserver.onNext(RegistrationEvent.newBuilder()
-                        .setEventType(EventType.EVENT_TYPE_HEALTH_CHECK_CONFIGURED)
-                        .setMessage("Health check configured")
+                responseObserver.onNext(RegisterServiceResponse.newBuilder()
+                        .setEvent(RegistrationEvent.newBuilder()
+                                .setEventType(EventType.EVENT_TYPE_HEALTH_CHECK_CONFIGURED)
+                                .setMessage("Health check configured")
+                                .build())
                         .build());
 
                 Thread.sleep(50);
 
                 LOG.info("DirectWireMockGrpcServer: Emitting CONSUL_HEALTHY event.");
-                responseObserver.onNext(RegistrationEvent.newBuilder()
-                        .setEventType(EventType.EVENT_TYPE_CONSUL_HEALTHY)
-                        .setMessage("Service reported healthy by Consul")
+                responseObserver.onNext(RegisterServiceResponse.newBuilder()
+                        .setEvent(RegistrationEvent.newBuilder()
+                                .setEventType(EventType.EVENT_TYPE_CONSUL_HEALTHY)
+                                .setMessage("Service reported healthy by Consul")
+                                .build())
                         .build());
 
                 Thread.sleep(50);
 
                 LOG.info("DirectWireMockGrpcServer: Emitting COMPLETED event.");
-                responseObserver.onNext(RegistrationEvent.newBuilder()
-                        .setEventType(EventType.EVENT_TYPE_COMPLETED)
-                        .setMessage("Service registration completed successfully")
+                responseObserver.onNext(RegisterServiceResponse.newBuilder()
+                        .setEvent(RegistrationEvent.newBuilder()
+                                .setEventType(EventType.EVENT_TYPE_COMPLETED)
+                                .setMessage("Service registration completed successfully")
+                                .build())
                         .build());
 
                 responseObserver.onCompleted();
@@ -155,8 +170,8 @@ public class DirectWireMockGrpcServer {
         }
 
         @Override
-        public void registerModule(ModuleRegistrationRequest request,
-                StreamObserver<RegistrationEvent> responseObserver) {
+        public void registerModule(RegisterModuleRequest request,
+                StreamObserver<RegisterModuleResponse> responseObserver) {
             LOG.info("DirectWireMockGrpcServer: registerModule called for: " + request.getModuleName());
             try {
                 EventType[] phases = {
@@ -181,9 +196,11 @@ public class DirectWireMockGrpcServer {
 
                 for (int i = 0; i < phases.length; i++) {
                     LOG.info("DirectWireMockGrpcServer: Emitting " + phases[i] + " event.");
-                    responseObserver.onNext(RegistrationEvent.newBuilder()
-                            .setEventType(phases[i])
-                            .setMessage(messages[i])
+                    responseObserver.onNext(RegisterModuleResponse.newBuilder()
+                            .setEvent(RegistrationEvent.newBuilder()
+                                    .setEventType(phases[i])
+                                    .setMessage(messages[i])
+                                    .build())
                             .build());
 
                     Thread.sleep(20);
@@ -200,10 +217,10 @@ public class DirectWireMockGrpcServer {
         }
 
         @Override
-        public void listServices(Empty request, StreamObserver<ServiceListResponse> responseObserver) {
+        public void listServices(ListServicesRequest request, StreamObserver<ListServicesResponse> responseObserver) {
             LOG.info("DirectWireMockGrpcServer: listServices called.");
-            ServiceListResponse response = ServiceListResponse.newBuilder()
-                    .addServices(ServiceDetails.newBuilder()
+            ListServicesResponse response = ListServicesResponse.newBuilder()
+                    .addServices(GetServiceResponse.newBuilder()
                             .setServiceName("repository-service")
                             .setServiceId("repo-1")
                             .setHost("localhost")
@@ -211,7 +228,7 @@ public class DirectWireMockGrpcServer {
                             .setVersion("1.0.0")
                             .setIsHealthy(true)
                             .build())
-                    .addServices(ServiceDetails.newBuilder()
+                    .addServices(GetServiceResponse.newBuilder()
                             .setServiceName("account-manager")
                             .setServiceId("account-1")
                             .setHost("localhost")
@@ -229,10 +246,10 @@ public class DirectWireMockGrpcServer {
         }
 
         @Override
-        public void listModules(Empty request, StreamObserver<ModuleListResponse> responseObserver) {
+        public void listModules(ListModulesRequest request, StreamObserver<ListModulesResponse> responseObserver) {
             LOG.info("DirectWireMockGrpcServer: listModules called.");
-            ModuleListResponse response = ModuleListResponse.newBuilder()
-                    .addModules(ModuleDetails.newBuilder()
+            ListModulesResponse response = ListModulesResponse.newBuilder()
+                    .addModules(GetModuleResponse.newBuilder()
                             .setModuleName("parser")
                             .setServiceId("parser-1")
                             .setHost("localhost")
@@ -243,7 +260,7 @@ public class DirectWireMockGrpcServer {
                             .addDocumentTypes("text")
                             .setIsHealthy(true)
                             .build())
-                    .addModules(ModuleDetails.newBuilder()
+                    .addModules(GetModuleResponse.newBuilder()
                             .setModuleName("chunker")
                             .setServiceId("chunker-1")
                             .setHost("localhost")
