@@ -1,17 +1,15 @@
 package ai.pipestream.wiremock.server;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
-import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
 import ai.pipestream.platform.registration.v1.PlatformRegistrationServiceGrpc;
 import ai.pipestream.platform.registration.v1.RegistrationEvent;
 import ai.pipestream.platform.registration.v1.EventType;
-import ai.pipestream.platform.registration.v1.RegisterServiceRequest;
-import ai.pipestream.platform.registration.v1.RegisterServiceResponse;
-import ai.pipestream.platform.registration.v1.RegisterModuleRequest;
-import ai.pipestream.platform.registration.v1.RegisterModuleResponse;
+import ai.pipestream.platform.registration.v1.RegisterRequest;
+import ai.pipestream.platform.registration.v1.RegisterResponse;
+import ai.pipestream.platform.registration.v1.ServiceType;
 import ai.pipestream.platform.registration.v1.ListServicesRequest;
 import ai.pipestream.platform.registration.v1.ListServicesResponse;
 import ai.pipestream.platform.registration.v1.ListModulesRequest;
@@ -23,6 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -95,84 +94,97 @@ public class DirectWireMockGrpcServer {
      */
     private class PlatformRegistrationServiceImpl extends PlatformRegistrationServiceGrpc.PlatformRegistrationServiceImplBase {
 
+        private Timestamp currentTimestamp() {
+            Instant now = Instant.now();
+            return Timestamp.newBuilder()
+                    .setSeconds(now.getEpochSecond())
+                    .setNanos(now.getNano())
+                    .build();
+        }
+
+        private RegisterResponse createResponse(EventType eventType, String message) {
+            return RegisterResponse.newBuilder()
+                    .setEvent(RegistrationEvent.newBuilder()
+                            .setEventType(eventType)
+                            .setTimestamp(currentTimestamp())
+                            .setMessage(message)
+                            .build())
+                    .build();
+        }
+
         @Override
-        public void registerService(RegisterServiceRequest request,
-                StreamObserver<RegisterServiceResponse> responseObserver) {
-            LOG.info("DirectWireMockGrpcServer: registerService called for: " + request.getServiceName());
+        public void register(RegisterRequest request, StreamObserver<RegisterResponse> responseObserver) {
+            String name = request.getName();
+            ServiceType serviceType = request.getType();
+            
+            if (serviceType == ServiceType.SERVICE_TYPE_SERVICE) {
+                LOG.info("DirectWireMockGrpcServer: register called for SERVICE: " + name);
+                registerService(responseObserver, name);
+            } else if (serviceType == ServiceType.SERVICE_TYPE_MODULE) {
+                LOG.info("DirectWireMockGrpcServer: register called for MODULE: " + name);
+                registerModule(responseObserver, name);
+            } else {
+                LOG.warn("DirectWireMockGrpcServer: Unknown service type: " + serviceType);
+                responseObserver.onError(io.grpc.Status.INVALID_ARGUMENT
+                        .withDescription("Unknown service type: " + serviceType)
+                        .asRuntimeException());
+            }
+        }
+
+        private void registerService(StreamObserver<RegisterResponse> responseObserver, String serviceName) {
             try {
                 // Simulate the 6-phase service registration process
                 LOG.info("DirectWireMockGrpcServer: Emitting STARTED event.");
-                responseObserver.onNext(RegisterServiceResponse.newBuilder()
-                        .setEvent(RegistrationEvent.newBuilder()
-                                .setEventType(EventType.EVENT_TYPE_STARTED)
-                                .setMessage("Starting service registration")
-                                .build())
-                        .build());
+                responseObserver.onNext(createResponse(
+                        EventType.EVENT_TYPE_STARTED,
+                        "Starting service registration"));
 
                 Thread.sleep(50);
 
                 LOG.info("DirectWireMockGrpcServer: Emitting VALIDATED event.");
-                responseObserver.onNext(RegisterServiceResponse.newBuilder()
-                        .setEvent(RegistrationEvent.newBuilder()
-                                .setEventType(EventType.EVENT_TYPE_VALIDATED)
-                                .setMessage("Service registration request validated")
-                                .build())
-                        .build());
+                responseObserver.onNext(createResponse(
+                        EventType.EVENT_TYPE_VALIDATED,
+                        "Service registration request validated"));
 
                 Thread.sleep(50);
 
                 LOG.info("DirectWireMockGrpcServer: Emitting CONSUL_REGISTERED event.");
-                responseObserver.onNext(RegisterServiceResponse.newBuilder()
-                        .setEvent(RegistrationEvent.newBuilder()
-                                .setEventType(EventType.EVENT_TYPE_CONSUL_REGISTERED)
-                                .setMessage("Service registered with Consul")
-                                .build())
-                        .build());
+                responseObserver.onNext(createResponse(
+                        EventType.EVENT_TYPE_CONSUL_REGISTERED,
+                        "Service registered with Consul"));
 
                 Thread.sleep(50);
 
                 LOG.info("DirectWireMockGrpcServer: Emitting HEALTH_CHECK_CONFIGURED event.");
-                responseObserver.onNext(RegisterServiceResponse.newBuilder()
-                        .setEvent(RegistrationEvent.newBuilder()
-                                .setEventType(EventType.EVENT_TYPE_HEALTH_CHECK_CONFIGURED)
-                                .setMessage("Health check configured")
-                                .build())
-                        .build());
+                responseObserver.onNext(createResponse(
+                        EventType.EVENT_TYPE_HEALTH_CHECK_CONFIGURED,
+                        "Health check configured"));
 
                 Thread.sleep(50);
 
                 LOG.info("DirectWireMockGrpcServer: Emitting CONSUL_HEALTHY event.");
-                responseObserver.onNext(RegisterServiceResponse.newBuilder()
-                        .setEvent(RegistrationEvent.newBuilder()
-                                .setEventType(EventType.EVENT_TYPE_CONSUL_HEALTHY)
-                                .setMessage("Service reported healthy by Consul")
-                                .build())
-                        .build());
+                responseObserver.onNext(createResponse(
+                        EventType.EVENT_TYPE_CONSUL_HEALTHY,
+                        "Service reported healthy by Consul"));
 
                 Thread.sleep(50);
 
                 LOG.info("DirectWireMockGrpcServer: Emitting COMPLETED event.");
-                responseObserver.onNext(RegisterServiceResponse.newBuilder()
-                        .setEvent(RegistrationEvent.newBuilder()
-                                .setEventType(EventType.EVENT_TYPE_COMPLETED)
-                                .setMessage("Service registration completed successfully")
-                                .build())
-                        .build());
+                responseObserver.onNext(createResponse(
+                        EventType.EVENT_TYPE_COMPLETED,
+                        "Service registration completed successfully"));
 
                 responseObserver.onCompleted();
-                LOG.info("DirectWireMockGrpcServer: Streaming completed for registerService.");
+                LOG.info("DirectWireMockGrpcServer: Streaming completed for service registration.");
 
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                LOG.error("DirectWireMockGrpcServer: Streaming interrupted for registerService.", e);
+                LOG.error("DirectWireMockGrpcServer: Streaming interrupted for service registration.", e);
                 responseObserver.onError(io.grpc.Status.INTERNAL.withDescription("Interrupted").asRuntimeException());
             }
         }
 
-        @Override
-        public void registerModule(RegisterModuleRequest request,
-                StreamObserver<RegisterModuleResponse> responseObserver) {
-            LOG.info("DirectWireMockGrpcServer: registerModule called for: " + request.getModuleName());
+        private void registerModule(StreamObserver<RegisterResponse> responseObserver, String moduleName) {
             try {
                 EventType[] phases = {
                         EventType.EVENT_TYPE_STARTED, EventType.EVENT_TYPE_VALIDATED, EventType.EVENT_TYPE_CONSUL_REGISTERED,
@@ -196,22 +208,16 @@ public class DirectWireMockGrpcServer {
 
                 for (int i = 0; i < phases.length; i++) {
                     LOG.info("DirectWireMockGrpcServer: Emitting " + phases[i] + " event.");
-                    responseObserver.onNext(RegisterModuleResponse.newBuilder()
-                            .setEvent(RegistrationEvent.newBuilder()
-                                    .setEventType(phases[i])
-                                    .setMessage(messages[i])
-                                    .build())
-                            .build());
-
+                    responseObserver.onNext(createResponse(phases[i], messages[i]));
                     Thread.sleep(20);
                 }
 
                 responseObserver.onCompleted();
-                LOG.info("DirectWireMockGrpcServer: Streaming completed for registerModule.");
+                LOG.info("DirectWireMockGrpcServer: Streaming completed for module registration.");
 
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                LOG.error("DirectWireMockGrpcServer: Streaming interrupted for registerModule.", e);
+                LOG.error("DirectWireMockGrpcServer: Streaming interrupted for module registration.", e);
                 responseObserver.onError(io.grpc.Status.INTERNAL.withDescription("Interrupted").asRuntimeException());
             }
         }
@@ -236,7 +242,7 @@ public class DirectWireMockGrpcServer {
                             .setVersion("1.0.0")
                             .setIsHealthy(true)
                             .build())
-                    .setAsOf(Timestamp.getDefaultInstance())
+                    .setAsOf(currentTimestamp())
                     .setTotalCount(2)
                     .build();
 
@@ -271,7 +277,7 @@ public class DirectWireMockGrpcServer {
                             .addDocumentTypes("text")
                             .setIsHealthy(true)
                             .build())
-                    .setAsOf(Timestamp.getDefaultInstance())
+                    .setAsOf(currentTimestamp())
                     .setTotalCount(2)
                     .build();
 

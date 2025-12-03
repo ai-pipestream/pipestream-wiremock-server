@@ -53,24 +53,32 @@ configurations.configureEach {
 
 // Task to sync proto files from Buf Schema Registry
 // This replaces the Maven artifact dependency on pipestream-protos
-tasks.register('syncProtos', Exec) {
+// Export registration module (includes platform registration service proto)
+tasks.register('syncRegistrationProtos', Exec) {
     group = 'protobuf'
-    description = 'Exports proto files from the Buf Registry'
-
-    // Buf module to fetch - can be made configurable via -PbufModule or -PbufVersion
-    def bufModule = project.findProperty('bufModule') ?: 'buf.build/pipestreamai/platform'
-
-    // Command: buf export <module> --output <dir>
-    // This downloads the raw .proto files, preserving the directory structure
-    commandLine 'buf', 'export', bufModule, '--output', bufExportDir.get().asFile.path
-
-    // Gradle will skip this if the output exists and inputs haven't changed
+    description = 'Exports registration proto files from Buf Registry'
+    commandLine 'buf', 'export', 'buf.build/pipestreamai/registration',
+            '--output', bufExportDir.get().asFile.path
     outputs.dir(bufExportDir)
-
     doFirst {
-        // Ensure output directory exists
         bufExportDir.get().asFile.mkdirs()
     }
+}
+
+// Export pipeline-module (needed for module_service.proto that registration imports)
+tasks.register('syncModuleProtos', Exec) {
+    group = 'protobuf'
+    description = 'Exports pipeline-module proto files from Buf Registry'
+    commandLine 'buf', 'export', 'buf.build/pipestreamai/pipeline-module',
+            '--output', bufExportDir.get().asFile.path
+    outputs.dir(bufExportDir)
+    dependsOn 'syncRegistrationProtos'
+}
+
+tasks.register('syncProtos') {
+    group = 'protobuf'
+    description = 'Syncs all proto definitions from Buf Registry'
+    dependsOn 'syncModuleProtos'
 }
 
 dependencies {
@@ -93,6 +101,10 @@ dependencies {
     // Proto files are now fetched from Buf Registry via syncProtos task
     // Keep Google Common Protos as library to avoid conflicts with protobuf-java-util
     protobuf libs.proto.google.common.protos
+
+    // Test dependencies
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 protobuf {
@@ -106,15 +118,8 @@ protobuf {
         }
     }
     generateProtoTasks {
-        ofSourceSet('main').each { task ->
-            task.generateDescriptorSet = true
-            task.descriptorSetOptions.includeImports = true
-            // Output the descriptor to a generated resources directory
-            task.descriptorSetOptions.path = layout.buildDirectory.file("generated/resources/proto/main/META-INF/grpc/services.dsc").get().asFile.path
-
-            task.plugins {
-                grpc {}
-            }
+        all()*.plugins {
+            grpc {}
         }
     }
 }
@@ -171,6 +176,14 @@ compileJava {
     options.compilerArgs << '-parameters'
 }
 
+test {
+    useJUnitPlatform()
+    testLogging {
+        events "passed", "skipped", "failed"
+        exceptionFormat "full"
+    }
+}
+
 // Configure Javadoc task
 tasks.withType(Javadoc).configureEach { task ->
     def opts = task.options
@@ -197,7 +210,7 @@ jib {
     }
     container {
         mainClass = 'ai.pipestream.wiremock.server.Main'
-        ports = ['8080', '50051', '50052'] // HTTP, gRPC, and Streaming gRPC ports
+        ports = ['8080', '50052'] // HTTP and Streaming gRPC ports
         jvmFlags = ['-Djava.awt.headless=true']
     }
 }
@@ -280,3 +293,4 @@ nmcp {
         publishingType = "AUTOMATIC"
     }
 }
+
