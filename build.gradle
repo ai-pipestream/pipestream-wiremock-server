@@ -7,9 +7,11 @@ plugins {
     id 'application'
     id 'maven-publish'
     id 'signing'
+    id 'eclipse'
     alias(libs.plugins.jib)
     alias(libs.plugins.protobuf)
     alias(libs.plugins.nmcp)
+    id 'idea'
 }
 
 scmVersion {
@@ -134,6 +136,33 @@ sourceSets {
         resources {
             // Add the generated descriptor set to resources
             srcDir layout.buildDirectory.dir("generated/resources/proto/main")
+        }
+    }
+}
+
+// Configure IntelliJ IDEA to recognize generated sources
+idea {
+    module {
+        sourceDirs += file('build/generated/sources/proto/main/java')
+        sourceDirs += file('build/generated/sources/proto/main/grpc')
+        generatedSourceDirs += file('build/generated/sources/proto/main/java')
+        generatedSourceDirs += file('build/generated/sources/proto/main/grpc')
+    }
+}
+
+// Configure Eclipse to recognize generated sources
+eclipse {
+    classpath {
+        file {
+            whenMerged { classpath ->
+                // Add generated protobuf sources to Eclipse classpath
+                def generatedJava = new org.gradle.plugins.ide.eclipse.model.SourceFolder(
+                    'build/generated/sources/proto/main/java', null)
+                def generatedGrpc = new org.gradle.plugins.ide.eclipse.model.SourceFolder(
+                    'build/generated/sources/proto/main/grpc', null)
+                classpath.entries.add(generatedJava)
+                classpath.entries.add(generatedGrpc)
+            }
         }
     }
 }
