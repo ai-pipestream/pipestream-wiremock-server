@@ -446,7 +446,10 @@ tasks.withType(Javadoc).configureEach { task ->
 publishing {
     publications {
         create('maven', MavenPublication) {
-            from components.java
+            // Manually specify artifacts since jar task is disabled
+            artifact shadowJar
+            artifact sourcesJar
+            artifact javadocJar
             pom {
                 name.set('Pipestream WireMock Server')
                 description.set('Standalone WireMock server with gRPC extension and custom streaming support for Pipestream')
