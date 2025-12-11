@@ -141,8 +141,8 @@ jobs:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_TOKEN }}
 
-      - name: Build and Push Docker Image to GHCR
-        # Only push explicit version tag and latest for releases
+      - name: Build and Push Docker Image to GHCR and Docker Hub
+        # Push to both registries in a single build to avoid copy issues
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -154,19 +154,5 @@ jobs:
           tags: |
             ghcr.io/ai-pipestream/pipestream-wiremock-server:latest
             ghcr.io/ai-pipestream/pipestream-wiremock-server:${{ env.RELEASE_VERSION }}
-
-      - name: Copy multi-arch image to Docker Hub
-        env:
-          BASE_IMAGE: ghcr.io/ai-pipestream/pipestream-wiremock-server
-          DOCKERHUB_REPO: docker.io/pipestreamai/pipestream-wiremock-server
-        run: |
-          VERSION=${{ env.RELEASE_VERSION }}
-          if [ -z "$VERSION" ]; then
-            # Fallback if triggered by tag push instead of dispatch
-            VERSION=${GITHUB_REF#refs/tags/v}
-          fi
-
-          set -euo pipefail
-          echo "Copying multi-arch manifests for version: $VERSION"
-          docker buildx imagetools create -t "$DOCKERHUB_REPO:latest" "$BASE_IMAGE:latest"
-          docker buildx imagetools create -t "$DOCKERHUB_REPO:$VERSION" "$BASE_IMAGE:$VERSION"
+            docker.io/pipestreamai/pipestream-wiremock-server:latest
+            docker.io/pipestreamai/pipestream-wiremock-server:${{ env.RELEASE_VERSION }}
