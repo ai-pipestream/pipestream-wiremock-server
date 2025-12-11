@@ -343,13 +343,6 @@ distTar.dependsOn shadowJar
 distZip.dependsOn shadowJar
 startScripts.dependsOn shadowJar
 
-// Copy resources to build/libs/resources for Docker
-tasks.register('copyResourcesForDocker', Copy) {
-    from 'src/main/resources'
-    into 'build/libs/resources'
-}
-shadowJar.dependsOn copyResourcesForDocker
-
 tasks.named('processTestResources').configure {
     dependsOn 'generateProto', 'generateTestProto'
     // Copy descriptor file to test resources wiremock/grpc so WireMock gRPC extension can find it in tests
