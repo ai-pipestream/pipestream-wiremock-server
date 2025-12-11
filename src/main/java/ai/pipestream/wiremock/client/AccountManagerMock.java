@@ -97,6 +97,13 @@ public class AccountManagerMock implements ServiceMockInitializer {
         // Set up default stub
         mockGetAccount(accountId, name, description, active);
 
+        // Set up configurable NOT_FOUND account if specified
+        String notFoundAccountId = config.get("wiremock.account.GetAccount.notfound.id", null);
+        if (notFoundAccountId != null && !notFoundAccountId.isEmpty()) {
+            mockAccountNotFound(notFoundAccountId);
+            LOG.info("Added configurable NOT_FOUND stub for accountId: {}", notFoundAccountId);
+        }
+
         // Set up additional test accounts for connector-admin integration tests
         // Order matters - more specific mocks first
         mockAccountNotFound("nonexistent");
@@ -118,6 +125,11 @@ public class AccountManagerMock implements ServiceMockInitializer {
      * @param active Whether the account is active
      */
     public void mockGetAccount(String accountId, String name, String description, boolean active) {
+        // Create the request for matching
+        GetAccountRequest request = GetAccountRequest.newBuilder()
+                .setAccountId(accountId)
+                .build();
+
         Account.Builder account = Account.newBuilder()
                 .setAccountId(accountId)
                 .setName(name)
@@ -128,9 +140,10 @@ public class AccountManagerMock implements ServiceMockInitializer {
                 .setAccount(account)
                 .build();
 
-        // Use message() directly with the shaded protobuf from WireMock
+        // Use request matching to ensure this stub only matches the specific account ID
         accountService.stubFor(
                 method("GetAccount")
+                        .withRequestMessage(WireMockGrpc.equalToMessage(request))
                         .willReturn(message(response))
         );
     }
