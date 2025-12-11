@@ -1,6 +1,8 @@
 package ai.pipestream.wiremock.server;
 
+import ai.pipestream.wiremock.client.ServiceMockRegistry;
 import com.github.tomakehurst.wiremock.WireMockServer;
+import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import org.wiremock.grpc.GrpcExtensionFactory;
 
@@ -18,6 +20,17 @@ import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMoc
  * (like {@code PlatformRegistrationService}) which are currently difficult to
  * mock with WireMock alone.</li>
  * </ol>
+ * <p>
+ * At startup, the server automatically discovers and initializes all service mock
+ * initializers (implementations of {@link ai.pipestream.wiremock.client.ServiceMockInitializer})
+ * via the {@link ServiceMockRegistry}. This sets up default stubs for all registered services.
+ * <p>
+ * Configuration can be provided via:
+ * <ul>
+ *   <li>Environment variables: {@code WIREMOCK_*}</li>
+ *   <li>Config file: {@code wiremock-mocks.properties} in classpath or current directory</li>
+ *   <li>System properties: {@code wiremock.*}</li>
+ * </ul>
  */
 public class Main {
 
@@ -41,16 +54,29 @@ public class Main {
 
         System.out.println("Starting WireMock Server with gRPC extension on port " + port);
 
-        WireMockConfiguration config = wireMockConfig()
-                .port(port)
-                // Essential: Allow extension to find descriptor files in the classpath or
-                // filesystem
-                .usingFilesUnderClasspath("META-INF")
-                .extensions(new GrpcExtensionFactory());
+            WireMockConfiguration config = wireMockConfig()
+                    .port(port)
+                    .bindAddress("0.0.0.0") // Bind to all interfaces for container deployment
+                    // Essential: Allow extension to find descriptor files in the classpath or
+                    // filesystem
+                    .usingFilesUnderClasspath("META-INF")
+                    .extensions(new GrpcExtensionFactory());
 
         WireMockServer server = new WireMockServer(config);
         server.start();
         System.out.println("WireMock Server started.");
+
+        // Automatically discover and initialize all service mock initializers
+        WireMock wireMock = new WireMock(server.port());
+        ServiceMockRegistry registry = new ServiceMockRegistry();
+        
+        if (registry.getInitializerCount() > 0) {
+            System.out.println("Initializing " + registry.getInitializerCount() + " service mock(s)...");
+            registry.initializeAll(wireMock);
+            System.out.println("Service mocks initialized. Services: " + String.join(", ", registry.getServiceNames()));
+        } else {
+            System.out.println("No service mock initializers found. Server running with no default stubs.");
+        }
 
         // Start the DirectWireMockGrpcServer for streaming capabilities
         System.out.println("Starting Direct Streaming gRPC Server on port " + streamingPort);

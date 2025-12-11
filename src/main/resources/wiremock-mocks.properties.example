@@ -1,0 +1,13 @@
+# Example configuration file for WireMock service mocks
+# Copy this file to wiremock-mocks.properties and customize as needed
+# This file can be placed in the classpath or current working directory
+
+# AccountService - GetAccount default stub
+wiremock.account.GetAccount.default.id=default-account
+wiremock.account.GetAccount.default.name=Default Account
+wiremock.account.GetAccount.default.description=Default account for testing
+wiremock.account.GetAccount.default.active=true
+
+# AccountService - GetAccount NOT_FOUND stub (optional)
+# wiremock.account.GetAccount.notfound.id=nonexistent-account
+
