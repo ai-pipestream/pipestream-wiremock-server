@@ -130,29 +130,24 @@ jobs:
 
       - name: Build and Push Docker Image to GHCR
         # Only push explicit version tag and latest for releases
-        run: |
-          VERSION=${{ env.RELEASE_VERSION }}
-          if [ -z "$VERSION" ]; then
-            # Fallback if triggered by tag push instead of dispatch
-            VERSION=${GITHUB_REF#refs/tags/v}
-          fi
-
-          docker buildx build \
-            --platform linux/amd64,linux/arm64 \
-            --file src/main/docker/Dockerfile \
-            --push \
-            --sbom \
-            --provenance true \
-            --tag ghcr.io/ai-pipestream/pipestream-wiremock-server:latest \
-            --tag ghcr.io/ai-pipestream/pipestream-wiremock-server:$VERSION \
-            .
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: src/main/docker/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          sbom: true
+          provenance: true
+          tags: |
+            ghcr.io/ai-pipestream/pipestream-wiremock-server:latest
+            ghcr.io/ai-pipestream/pipestream-wiremock-server:${{ env.RELEASE_VERSION }}
 
       - name: Copy multi-arch image to Docker Hub
         env:
           BASE_IMAGE: ghcr.io/ai-pipestream/pipestream-wiremock-server
           DOCKERHUB_REPO: docker.io/pipestreamai/pipestream-wiremock-server
-          VERSION: ${{ env.RELEASE_VERSION }}
         run: |
+          VERSION=${{ env.RELEASE_VERSION }}
           if [ -z "$VERSION" ]; then
             # Fallback if triggered by tag push instead of dispatch
             VERSION=${GITHUB_REF#refs/tags/v}
