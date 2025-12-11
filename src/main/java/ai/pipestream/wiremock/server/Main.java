@@ -52,6 +52,16 @@ public class Main {
             }
         }
 
+        // #region agent log
+        writeDebugLog("A", "Main.java:startup", "run-pre", "Starting wiremock-main", java.util.Map.of(
+                "port", port,
+                "streamingPort", streamingPort,
+                "javaVersion", System.getProperty("java.version"),
+                "classpath", System.getProperty("java.class.path", "")
+        ));
+        writeDebugLog("A", "Main.java:files", "run-pre", "Listing /deployments", listDeployments());
+        // #endregion
+
         System.out.println("Starting WireMock Server with gRPC extension on port " + port);
 
             WireMockConfiguration config = wireMockConfig()
@@ -109,4 +119,33 @@ public class Main {
             Thread.currentThread().interrupt();
         }
     }
+
+    // #region agent log
+    private static void writeDebugLog(String hypothesisId, String location, String runId, String message, java.util.Map<String, Object> data) {
+        try (java.io.FileWriter fw = new java.io.FileWriter("/home/krickert/IdeaProjects/.cursor/debug.log", true)) {
+            long ts = System.currentTimeMillis();
+            String json = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(java.util.Map.of(
+                    "id", "log_" + ts,
+                    "timestamp", ts,
+                    "location", location,
+                    "message", message,
+                    "data", data,
+                    "sessionId", "debug-session",
+                    "runId", runId,
+                    "hypothesisId", hypothesisId
+            ));
+            fw.write(json + "\n");
+        } catch (Exception ignored) {
+        }
+    }
+
+    private static java.util.Map<String, Object> listDeployments() {
+        java.io.File dir = new java.io.File("/deployments");
+        String[] files = dir.list();
+        return java.util.Map.of(
+                "exists", dir.exists(),
+                "files", files == null ? java.util.List.of() : java.util.List.of(files)
+        );
+    }
+    // #endregion
 }
