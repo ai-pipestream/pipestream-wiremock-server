@@ -8,6 +8,9 @@ import org.wiremock.grpc.GrpcExtensionFactory;
 
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 /**
  * The entry point for the Pipestream WireMock Server.
  * <p>
@@ -34,6 +37,8 @@ import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMoc
  */
 public class Main {
 
+    private static final Logger LOGGER = Logger.getLogger(Main.class.getName());
+
     /**
      * Starts the servers.
      *
@@ -48,7 +53,7 @@ public class Main {
             try {
                 port = Integer.parseInt(args[0]);
             } catch (NumberFormatException e) {
-                System.err.println("Invalid port number, using default " + port);
+                LOGGER.log(Level.WARNING, "Invalid port number in arguments, using default {0}", port);
             }
         }
 
@@ -62,7 +67,7 @@ public class Main {
         writeDebugLog("A", "Main.java:files", "run-pre", "Listing /deployments", listDeployments());
         // #endregion
 
-        System.out.println("Starting WireMock Server with gRPC extension on port " + port);
+        LOGGER.info("Starting WireMock Server with gRPC extension on port " + port);
 
             WireMockConfiguration config = wireMockConfig()
                     .port(port)
@@ -74,53 +79,55 @@ public class Main {
 
         WireMockServer server = new WireMockServer(config);
         server.start();
-        System.out.println("WireMock Server started.");
+        LOGGER.info("WireMock Server started.");
 
         // Automatically discover and initialize all service mock initializers
         WireMock wireMock = new WireMock(server.port());
         ServiceMockRegistry registry = new ServiceMockRegistry();
         
         if (registry.getInitializerCount() > 0) {
-            System.out.println("Initializing " + registry.getInitializerCount() + " service mock(s)...");
+            LOGGER.info("Initializing " + registry.getInitializerCount() + " service mock(s)...");
             registry.initializeAll(wireMock);
-            System.out.println("Service mocks initialized. Services: " + String.join(", ", registry.getServiceNames()));
+            LOGGER.info("Service mocks initialized. Services: " + String.join(", ", registry.getServiceNames()));
         } else {
-            System.out.println("No service mock initializers found. Server running with no default stubs.");
+            LOGGER.info("No service mock initializers found. Server running with no default stubs.");
         }
 
         // Start the DirectWireMockGrpcServer for streaming capabilities
-        System.out.println("Starting Direct Streaming gRPC Server on port " + streamingPort);
+        LOGGER.info("Starting Direct Streaming gRPC Server on port " + streamingPort);
         DirectWireMockGrpcServer streamingServer = new DirectWireMockGrpcServer(server, streamingPort);
         try {
             streamingServer.start();
-            System.out.println("Direct Streaming gRPC Server started.");
+            LOGGER.info("Direct Streaming gRPC Server started.");
         } catch (java.io.IOException e) {
-            System.err.println("Failed to start Direct Streaming gRPC Server: " + e.getMessage());
-            e.printStackTrace();
+            LOGGER.log(Level.SEVERE, "Failed to start Direct Streaming gRPC Server: " + e.getMessage(), e);
             server.stop();
             System.exit(1);
         }
 
         // Keep the process alive
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            System.out.println("Stopping Servers...");
+            LOGGER.info("Stopping Servers...");
             try {
                 streamingServer.stop();
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                LOGGER.log(Level.WARNING, "Interrupted while stopping Direct Streaming gRPC Server", e);
+                Thread.currentThread().interrupt();
             }
             server.stop();
-            System.out.println("Servers stopped.");
+            LOGGER.info("Servers stopped.");
         }));
 
         try {
             Thread.currentThread().join();
         } catch (InterruptedException e) {
+            LOGGER.log(Level.WARNING, "Main thread interrupted; shutting down", e);
             Thread.currentThread().interrupt();
         }
     }
 
     // #region agent log
+    @SuppressWarnings("SameParameterValue")
     private static void writeDebugLog(String hypothesisId, String location, String runId, String message, java.util.Map<String, Object> data) {
         try (java.io.FileWriter fw = new java.io.FileWriter("/home/krickert/IdeaProjects/.cursor/debug.log", true)) {
             long ts = System.currentTimeMillis();
