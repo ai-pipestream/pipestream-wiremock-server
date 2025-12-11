@@ -31,8 +31,8 @@ ENV LANGUAGE='en_US:en' \
 # Create deployment directory
 RUN mkdir -p /deployments && chown -R 185:185 /deployments
 
-# Copy the shadow JAR (contains all dependencies and resources)
-COPY --chown=185:185 build/libs/*.jar /deployments/
+# Copy only the shadow JAR (with classifier 'all', contains all dependencies)
+COPY --chown=185:185 build/libs/pipestream-wiremock-server-*-all.jar /deployments/app.jar
 
 EXPOSE 8080 50052
 USER 185
@@ -41,4 +41,4 @@ USER 185
 HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8080/__admin/health || exit 1
 
-ENTRYPOINT ["sh", "-c", "java -jar /deployments/pipestream-wiremock-server-*.jar"]
+ENTRYPOINT ["java", "-jar", "/deployments/app.jar"]

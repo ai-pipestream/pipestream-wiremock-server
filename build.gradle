@@ -326,7 +326,10 @@ tasks.named('processResources').configure {
 
 // Shadow JAR configuration for Docker container - replaces the jar task
 shadowJar {
-    archiveClassifier = ''
+    // Use a distinct classifier so we can target the correct artifact in Docker
+    archiveClassifier = 'all'
+    // Ensure a stable filename
+    archiveBaseName.set('pipestream-wiremock-server')
     mergeServiceFiles()
     manifest {
         attributes 'Main-Class': 'ai.pipestream.wiremock.server.Main'
