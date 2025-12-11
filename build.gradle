@@ -324,7 +324,7 @@ tasks.named('processResources').configure {
     }
 }
 
-// Shadow JAR configuration for Docker container
+// Shadow JAR configuration for Docker container - replaces the jar task
 shadowJar {
     archiveClassifier = ''
     mergeServiceFiles()
@@ -333,13 +333,15 @@ shadowJar {
     }
 }
 
-// Disable default JAR and use shadow JAR instead
+// Disable default JAR since shadowJar replaces it
 jar {
     enabled = false
 }
 
-// Make assemble depend on shadow JAR
-assemble.dependsOn shadowJar
+// Make distribution tasks depend on shadowJar
+distTar.dependsOn shadowJar
+distZip.dependsOn shadowJar
+startScripts.dependsOn shadowJar
 
 // Copy resources to build/libs/resources for Docker
 tasks.register('copyResourcesForDocker', Copy) {
