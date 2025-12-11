@@ -1,5 +1,5 @@
 [versions]
-wiremock = "3.13.2"
+wiremock = "4.0.0-beta.22"
 wiremock-grpc-extension = "0.11.0"
 slf4j = "2.0.17"
 protobuf-java = "4.33.1"
