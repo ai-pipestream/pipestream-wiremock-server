@@ -58,13 +58,15 @@ public class Main {
         }
 
         // #region agent log
-        writeDebugLog("A", "Main.java:startup", "run-pre", "Starting wiremock-main", java.util.Map.of(
-                "port", port,
-                "streamingPort", streamingPort,
-                "javaVersion", System.getProperty("java.version"),
-                "classpath", System.getProperty("java.class.path", "")
-        ));
-        writeDebugLog("A", "Main.java:files", "run-pre", "Listing /deployments", listDeployments());
+        if (isDebugEnabled()) {
+            writeDebugLog("A", "Main.java:startup", "run-pre", "Starting wiremock-main", java.util.Map.of(
+                    "port", port,
+                    "streamingPort", streamingPort,
+                    "javaVersion", System.getProperty("java.version"),
+                    "classpath", System.getProperty("java.class.path", "")
+            ));
+            writeDebugLog("A", "Main.java:files", "run-pre", "Listing /deployments", listDeployments());
+        }
         // #endregion
 
         LOGGER.info("Starting WireMock Server with gRPC extension on port " + port);
@@ -127,6 +129,10 @@ public class Main {
     }
 
     // #region agent log
+    private static boolean isDebugEnabled() {
+        return Boolean.parseBoolean(System.getProperty("wiremock.debug", "false"));
+    }
+
     @SuppressWarnings("SameParameterValue")
     private static void writeDebugLog(String hypothesisId, String location, String runId, String message, java.util.Map<String, Object> data) {
         try (java.io.FileWriter fw = new java.io.FileWriter("/home/krickert/IdeaProjects/.cursor/debug.log", true)) {
@@ -143,6 +149,7 @@ public class Main {
             ));
             fw.write(json + "\n");
         } catch (Exception ignored) {
+            // Debug logging is optional; fail silently if Jackson is not available
         }
     }
 

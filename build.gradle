@@ -341,7 +341,10 @@ jar {
     enabled = false
 }
 
-// Make distribution tasks depend on shadowJar
+// Make build and distribution tasks depend on shadowJar
+tasks.named('build').configure {
+    dependsOn shadowJar
+}
 distTar.dependsOn shadowJar
 distZip.dependsOn shadowJar
 startScripts.dependsOn shadowJar
