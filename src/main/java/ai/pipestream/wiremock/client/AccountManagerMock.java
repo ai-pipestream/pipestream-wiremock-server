@@ -83,26 +83,27 @@ public class AccountManagerMock implements ServiceMockInitializer {
     @Override
     public void initializeDefaults(WireMock wireMock) {
         this.accountService = new WireMockGrpcService(wireMock, SERVICE_NAME);
-        
+
         MockConfig config = new MockConfig();
-        
-        // Read configuration with fallback to sensible defaults
+
+        // Read configuration for default account
         String accountId = config.get("wiremock.account.GetAccount.default.id", "default-account");
         String name = config.get("wiremock.account.GetAccount.default.name", "Default Account");
         String description = config.get("wiremock.account.GetAccount.default.description", "Default account for testing");
         boolean active = config.getBoolean("wiremock.account.GetAccount.default.active", true);
-        
+
         LOG.info("Initializing default AccountService stubs with accountId: {}", accountId);
-        
+
         // Set up default stub
         mockGetAccount(accountId, name, description, active);
-        
-        // Optionally set up NOT_FOUND stub for a known non-existent account
-        String notFoundAccountId = config.get("wiremock.account.GetAccount.notfound.id", "nonexistent-account");
-        if (config.hasKey("wiremock.account.GetAccount.notfound.id") || 
-            !notFoundAccountId.equals("nonexistent-account")) {
-            mockAccountNotFound(notFoundAccountId);
-        }
+
+        // Set up additional test accounts for connector-admin integration tests
+        // Order matters - more specific mocks first
+        mockAccountNotFound("nonexistent");
+        mockGetAccount("inactive-account", "Inactive Account", "Inactive account for testing", false);
+        mockGetAccount("valid-account", "Valid Account", "Valid account for testing", true);
+
+        LOG.info("Added test account stubs: valid-account (active), inactive-account (inactive), nonexistent (NOT_FOUND)");
     }
 
     /**
