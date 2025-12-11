@@ -128,7 +128,7 @@ jobs:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_TOKEN }}
 
-      - name: Build and Push Docker Image
+      - name: Build and Push Docker Image to GHCR
         # Only push explicit version tag and latest for releases
         run: |
           VERSION=${{ env.RELEASE_VERSION }}
@@ -136,19 +136,29 @@ jobs:
             # Fallback if triggered by tag push instead of dispatch
             VERSION=${GITHUB_REF#refs/tags/v}
           fi
-          
-          ./gradlew jib \
-            -Djib.to.image=ghcr.io/ai-pipestream/pipestream-wiremock-server \
-            -Djib.to.tags=latest,$VERSION \
-            -Djib.to.auth.username=${{ github.actor }} \
-            -Djib.to.auth.password=${{ secrets.GITHUB_TOKEN }} \
-            -Pversion=$VERSION \
-            --no-daemon
-          
-          ./gradlew jib \
-            -Djib.to.image=docker.io/pipestreamai/pipestream-wiremock-server \
-            -Djib.to.tags=latest,$VERSION \
-            -Djib.to.auth.username=${{ secrets.DOCKER_USER }} \
-            -Djib.to.auth.password=${{ secrets.DOCKER_TOKEN }} \
-            -Pversion=$VERSION \
-            --no-daemon
+
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            --file src/main/docker/Dockerfile \
+            --push \
+            --sbom \
+            --provenance true \
+            --tag ghcr.io/ai-pipestream/pipestream-wiremock-server:latest \
+            --tag ghcr.io/ai-pipestream/pipestream-wiremock-server:$VERSION \
+            .
+
+      - name: Copy multi-arch image to Docker Hub
+        env:
+          BASE_IMAGE: ghcr.io/ai-pipestream/pipestream-wiremock-server
+          DOCKERHUB_REPO: docker.io/pipestreamai/pipestream-wiremock-server
+          VERSION: ${{ env.RELEASE_VERSION }}
+        run: |
+          if [ -z "$VERSION" ]; then
+            # Fallback if triggered by tag push instead of dispatch
+            VERSION=${GITHUB_REF#refs/tags/v}
+          fi
+
+          set -euo pipefail
+          echo "Copying multi-arch manifests for version: $VERSION"
+          docker buildx imagetools create -t "$DOCKERHUB_REPO:latest" "$BASE_IMAGE:latest"
+          docker buildx imagetools create -t "$DOCKERHUB_REPO:$VERSION" "$BASE_IMAGE:$VERSION"

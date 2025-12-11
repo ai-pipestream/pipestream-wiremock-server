@@ -11,6 +11,7 @@ plugins {
     alias(libs.plugins.jib)
     alias(libs.plugins.protobuf)
     alias(libs.plugins.nmcp)
+    alias(libs.plugins.shadow)
     id 'idea'
 }
 
@@ -323,17 +324,29 @@ tasks.named('processResources').configure {
     }
 }
 
-jib {
-    to {
-        image = 'ghcr.io/ai-pipestream/pipestream-wiremock-server'
-        tags = ['latest', version]
-    }
-    container {
-        mainClass = 'ai.pipestream.wiremock.server.Main'
-        ports = ['8080', '50052'] // HTTP and Streaming gRPC ports
-        jvmFlags = ['-Djava.awt.headless=true']
+// Shadow JAR configuration for Docker container
+shadowJar {
+    archiveClassifier = ''
+    mergeServiceFiles()
+    manifest {
+        attributes 'Main-Class': 'ai.pipestream.wiremock.server.Main'
     }
 }
+
+// Disable default JAR and use shadow JAR instead
+jar {
+    enabled = false
+}
+
+// Make assemble depend on shadow JAR
+assemble.dependsOn shadowJar
+
+// Copy resources to build/libs/resources for Docker
+tasks.register('copyResourcesForDocker', Copy) {
+    from 'src/main/resources'
+    into 'build/libs/resources'
+}
+shadowJar.dependsOn copyResourcesForDocker
 
 tasks.named('processTestResources').configure {
     dependsOn 'generateProto', 'generateTestProto'
@@ -421,22 +434,10 @@ tasks.withType(Javadoc).configureEach { task ->
     opts.addStringOption('Xdoclint:-missing', '-quiet')
     
     // Exclude generated protobuf code from Javadoc
-    task.exclude('**/ai/pipestream/platform/registration/**') 
+    task.exclude('**/ai/pipestream/platform/registration/**')
     task.exclude('**/ai/pipestream/data/**')
     task.exclude('**/ai/pipestream/opensearch/**')
     task.exclude('**/com/google/**')
-}
-
-jib {
-    to {
-        image = 'ghcr.io/ai-pipestream/pipestream-wiremock-server'
-        tags = ['latest', version]
-    }
-    container {
-        mainClass = 'ai.pipestream.wiremock.server.Main'
-        ports = ['8080', '50052'] // HTTP and Streaming gRPC ports
-        jvmFlags = ['-Djava.awt.headless=true']
-    }
 }
 
 // Publishing configuration
