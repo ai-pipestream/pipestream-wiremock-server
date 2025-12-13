@@ -256,9 +256,8 @@ protobuf {
             task.generateDescriptorSet = true
             task.descriptorSetOptions.includeSourceInfo = true
             task.descriptorSetOptions.includeImports = true
-            // Generate descriptor directly to wiremock/grpc directory (like reference examples)
-            // This ensures WireMock can find it when using withRootDirectory("src/test/resources/wiremock")
-            task.descriptorSetOptions.path = "$projectDir/src/test/resources/wiremock/grpc/services.dsc"
+            // Generate descriptor to a build directory that will be included in the main resources
+            task.descriptorSetOptions.path = layout.buildDirectory.file("generated/resources/proto/main/grpc/services.dsc").get().asFile.path
         }
     }
 }
@@ -270,14 +269,14 @@ sourceSets {
             // Tell Gradle's Protobuf Plugin to look in the buf-exported folder
             srcDir bufExportDir
         }
-        resources {
-            // Add the generated descriptor set to resources
-            srcDir layout.buildDirectory.dir("generated/resources/proto/main")
-        }
+        // resources {
+        //    // Add the generated descriptor set to resources so it appears at classpath root /grpc/services.dsc
+        //    srcDir layout.buildDirectory.dir("generated/resources/proto/main")
+        // }
     }
     test {
         resources {
-            // Also add descriptor files to test resources so WireMock can find them in tests
+            // Add the generated descriptor set to test resources as well
             srcDir layout.buildDirectory.dir("generated/resources/proto/main")
         }
     }
@@ -312,17 +311,6 @@ eclipse {
 
 tasks.named('processResources').configure {
     dependsOn 'generateProto'
-    // Copy descriptor file to src/main/resources/grpc so Jib will include it in the classpath root
-    doLast {
-        def descriptorFile = file("src/test/resources/wiremock/grpc/services.dsc")
-        if (descriptorFile.exists()) {
-            copy {
-                from descriptorFile
-                into "src/main/resources/grpc"
-                rename { "services.dsc" }
-            }
-        }
-    }
 }
 
 // Shadow JAR configuration for Docker container - replaces the jar task
