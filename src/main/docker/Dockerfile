@@ -17,11 +17,10 @@
 
 FROM registry.access.redhat.com/ubi9-minimal:9.5
 
-# Install Java 21 runtime, unzip for extraction, and curl for healthcheck
+# Install Java 21 runtime and unzip/tar for extraction
 RUN microdnf install -y \
     java-21-openjdk-headless \
     unzip \
-    curl \
     ca-certificates \
     && microdnf update -y \
     && microdnf clean all \
