@@ -20,6 +20,10 @@ import com.google.protobuf.Timestamp;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import ai.pipestream.repository.v1.filesystem.upload.NodeUploadServiceGrpc;
+import ai.pipestream.repository.v1.filesystem.upload.UploadPipeDocRequest;
+import ai.pipestream.repository.v1.filesystem.upload.UploadPipeDocResponse;
+
 import java.io.IOException;
 import java.time.Instant;
 import java.util.concurrent.TimeUnit;
@@ -42,29 +46,34 @@ public class DirectWireMockGrpcServer {
 
     private static final Logger LOG = LoggerFactory.getLogger(DirectWireMockGrpcServer.class);
 
-    private final WireMockServer wireMockServer;
     private final Server grpcServer;
-    private final int grpcPort;
 
     /**
      * Construct a DirectWireMockGrpcServer.
      *
-     * @param wireMockServer The existing WireMock server instance.
-     * @param grpcPort       The port to bind the streaming gRPC server to.
+     * @param wireMockServer        The existing WireMock server instance (unused currently but kept for potential future linkage).
+     * @param grpcPort              The port to bind the streaming gRPC server to.
+     * @param maxInboundMessageSize Max inbound message size in bytes.
      */
-    public DirectWireMockGrpcServer(WireMockServer wireMockServer, int grpcPort) {
-        this.wireMockServer = wireMockServer;
-        this.grpcPort = grpcPort;
+    public DirectWireMockGrpcServer(WireMockServer wireMockServer, int grpcPort, int maxInboundMessageSize) {
+        // wireMockServer unused in current implementation
 
         // Create gRPC server
         this.grpcServer = ServerBuilder.forPort(grpcPort)
+                .maxInboundMessageSize(maxInboundMessageSize)
                 .addService(new PlatformRegistrationServiceImpl())
+                .addService(new NodeUploadServiceImpl()) // Add the performance stub
                 .build();
+    }
+
+    // Overload for backward compatibility (defaults to 500MB)
+    public DirectWireMockGrpcServer(WireMockServer wireMockServer, int grpcPort) {
+        this(wireMockServer, grpcPort, 500 * 1024 * 1024);
     }
 
     public void start() throws IOException {
         grpcServer.start();
-        LOG.info("DirectWireMockGrpcServer: gRPC server started on port " + grpcServer.getPort());
+        LOG.info("DirectWireMockGrpcServer: gRPC server started on port {}", grpcServer.getPort());
     }
 
     public void stop() throws InterruptedException {
@@ -83,6 +92,36 @@ public class DirectWireMockGrpcServer {
     }
 
     /**
+     * High-performance "Black Hole" implementation of NodeUploadService.
+     * <p>
+     * Used for benchmarking throughput without the overhead of WireMock's JSON conversion.
+     * It accepts large payloads (e.g., 250MB) and returns success immediately.
+     */
+    private static class NodeUploadServiceImpl extends NodeUploadServiceGrpc.NodeUploadServiceImplBase {
+        @Override
+        public void uploadPipeDoc(UploadPipeDocRequest request, StreamObserver<UploadPipeDocResponse> responseObserver) {
+            // "Black hole" - simply acknowledge receipt
+            // The request payload has already been deserialized by gRPC (Netty), which is unavoidable,
+            // but we avoid the WireMock JSON serialization step.
+            
+            // Optional: Log size for debug (might impact perf if logging full object)
+            int size = request.getSerializedSize();
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("DirectWireMock: Received uploadPipeDoc, size=" + size + " bytes");
+            }
+
+            UploadPipeDocResponse response = UploadPipeDocResponse.newBuilder()
+                    .setSuccess(true)
+                    .setDocumentId("perf-mock-doc-" + System.currentTimeMillis())
+                    .setMessage("Direct mock upload successful (size=" + size + ")")
+                    .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+        }
+    }
+
+    /**
      * Implementation of the Platform Registration Service that uses WireMock
      * for request matching but handles streaming responses directly.
      * <p>
@@ -92,7 +131,7 @@ public class DirectWireMockGrpcServer {
      * delays
      * to test the client's ability to handle streams.
      */
-    private class PlatformRegistrationServiceImpl extends PlatformRegistrationServiceGrpc.PlatformRegistrationServiceImplBase {
+    private static class PlatformRegistrationServiceImpl extends PlatformRegistrationServiceGrpc.PlatformRegistrationServiceImplBase {
 
         private Timestamp currentTimestamp() {
             Instant now = Instant.now();
@@ -119,10 +158,10 @@ public class DirectWireMockGrpcServer {
             
             if (serviceType == ServiceType.SERVICE_TYPE_SERVICE) {
                 LOG.info("DirectWireMockGrpcServer: register called for SERVICE: " + name);
-                registerService(responseObserver, name);
+                registerService(responseObserver);
             } else if (serviceType == ServiceType.SERVICE_TYPE_MODULE) {
                 LOG.info("DirectWireMockGrpcServer: register called for MODULE: " + name);
-                registerModule(responseObserver, name);
+                registerModule(responseObserver);
             } else {
                 LOG.warn("DirectWireMockGrpcServer: Unknown service type: " + serviceType);
                 responseObserver.onError(io.grpc.Status.INVALID_ARGUMENT
@@ -131,7 +170,7 @@ public class DirectWireMockGrpcServer {
             }
         }
 
-        private void registerService(StreamObserver<RegisterResponse> responseObserver, String serviceName) {
+        private void registerService(StreamObserver<RegisterResponse> responseObserver) {
             try {
                 // Simulate the 6-phase service registration process
                 LOG.info("DirectWireMockGrpcServer: Emitting STARTED event.");
@@ -184,7 +223,7 @@ public class DirectWireMockGrpcServer {
             }
         }
 
-        private void registerModule(StreamObserver<RegisterResponse> responseObserver, String moduleName) {
+        private void registerModule(StreamObserver<RegisterResponse> responseObserver) {
             try {
                 EventType[] phases = {
                         EventType.EVENT_TYPE_STARTED, EventType.EVENT_TYPE_VALIDATED, EventType.EVENT_TYPE_CONSUL_REGISTERED,

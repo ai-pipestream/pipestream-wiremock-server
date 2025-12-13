@@ -22,3 +22,7 @@ temp/
 *.swo
 *~
 dist/
+
+# Generated descriptor files
+**/*.dsc
+**/*.desc

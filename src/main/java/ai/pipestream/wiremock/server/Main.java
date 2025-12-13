@@ -48,6 +48,7 @@ public class Main {
     public static void main(String[] args) {
         int port = 8080;
         int streamingPort = 50052; // Separate port for the custom streaming server
+        int maxMessageSize = 500 * 1024 * 1024; // Default 500 MB
 
         if (args.length > 0) {
             try {
@@ -57,11 +58,30 @@ public class Main {
             }
         }
 
+        // Configuration via Environment Variable or System Property
+        String maxMessageSizeEnv = System.getenv("WIREMOCK_GRPC_MAX_MESSAGE_SIZE");
+        String maxMessageSizeProp = System.getProperty("wiremock.grpc.maxInboundMessageSize");
+        
+        if (maxMessageSizeProp != null) {
+            try {
+                maxMessageSize = Integer.parseInt(maxMessageSizeProp);
+            } catch (NumberFormatException e) {
+                LOGGER.log(Level.WARNING, "Invalid max message size property, using default {0}", maxMessageSize);
+            }
+        } else if (maxMessageSizeEnv != null) {
+            try {
+                maxMessageSize = Integer.parseInt(maxMessageSizeEnv);
+            } catch (NumberFormatException e) {
+                LOGGER.log(Level.WARNING, "Invalid max message size env var, using default {0}", maxMessageSize);
+            }
+        }
+
         // #region agent log
         if (isDebugEnabled()) {
             writeDebugLog("A", "Main.java:startup", "run-pre", "Starting wiremock-main", java.util.Map.of(
                     "port", port,
                     "streamingPort", streamingPort,
+                    "maxMessageSize", maxMessageSize,
                     "javaVersion", System.getProperty("java.version"),
                     "classpath", System.getProperty("java.class.path", "")
             ));
@@ -100,8 +120,8 @@ public class Main {
         }
 
         // Start the DirectWireMockGrpcServer for streaming capabilities
-        LOGGER.info("Starting Direct Streaming gRPC Server on port " + streamingPort);
-        DirectWireMockGrpcServer streamingServer = new DirectWireMockGrpcServer(server, streamingPort);
+        LOGGER.info("Starting Direct Streaming gRPC Server on port " + streamingPort + " with max message size " + maxMessageSize + " bytes");
+        DirectWireMockGrpcServer streamingServer = new DirectWireMockGrpcServer(server, streamingPort, maxMessageSize);
         try {
             streamingServer.start();
             LOGGER.info("Direct Streaming gRPC Server started.");
