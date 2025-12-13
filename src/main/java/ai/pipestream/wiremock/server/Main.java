@@ -48,7 +48,7 @@ public class Main {
     public static void main(String[] args) {
         int port = 8080;
         int streamingPort = 50052; // Separate port for the custom streaming server
-        int maxMessageSize = 500 * 1024 * 1024; // Default 500 MB
+        int maxMessageSize = Integer.MAX_VALUE; // Maximize support (approx 2GB)
 
         if (args.length > 0) {
             try {
@@ -62,32 +62,20 @@ public class Main {
         String maxMessageSizeEnv = System.getenv("WIREMOCK_GRPC_MAX_MESSAGE_SIZE");
         String maxMessageSizeProp = System.getProperty("wiremock.grpc.maxInboundMessageSize");
         
-        if (maxMessageSizeProp != null) {
-            try {
-                maxMessageSize = Integer.parseInt(maxMessageSizeProp);
-            } catch (NumberFormatException e) {
-                LOGGER.log(Level.WARNING, "Invalid max message size property, using default {0}", maxMessageSize);
-            }
-        } else if (maxMessageSizeEnv != null) {
-            try {
-                maxMessageSize = Integer.parseInt(maxMessageSizeEnv);
-            } catch (NumberFormatException e) {
-                LOGGER.log(Level.WARNING, "Invalid max message size env var, using default {0}", maxMessageSize);
-            }
-        }
+        String sizeConfigToUse = maxMessageSizeProp != null ? maxMessageSizeProp : maxMessageSizeEnv;
 
-        // #region agent log
-        if (isDebugEnabled()) {
-            writeDebugLog("A", "Main.java:startup", "run-pre", "Starting wiremock-main", java.util.Map.of(
-                    "port", port,
-                    "streamingPort", streamingPort,
-                    "maxMessageSize", maxMessageSize,
-                    "javaVersion", System.getProperty("java.version"),
-                    "classpath", System.getProperty("java.class.path", "")
-            ));
-            writeDebugLog("A", "Main.java:files", "run-pre", "Listing /deployments", listDeployments());
+        if (sizeConfigToUse != null) {
+            try {
+                long parsedSize = Long.parseLong(sizeConfigToUse);
+                if (parsedSize >= Integer.MAX_VALUE) {
+                    LOGGER.info("Configured max message size " + parsedSize + " exceeds Integer.MAX_VALUE. Capping at " + Integer.MAX_VALUE);
+                } else {
+                    maxMessageSize = (int) parsedSize;
+                }
+            } catch (NumberFormatException e) {
+                LOGGER.log(Level.WARNING, "Invalid max message size configuration, using default {0}", maxMessageSize);
+            }
         }
-        // #endregion
 
         LOGGER.info("Starting WireMock Server with gRPC extension on port " + port);
 
@@ -152,38 +140,5 @@ public class Main {
         }
     }
 
-    // #region agent log
-    private static boolean isDebugEnabled() {
-        return Boolean.parseBoolean(System.getProperty("wiremock.debug", "false"));
-    }
-
-    @SuppressWarnings("SameParameterValue")
-    private static void writeDebugLog(String hypothesisId, String location, String runId, String message, java.util.Map<String, Object> data) {
-        try (java.io.FileWriter fw = new java.io.FileWriter("/home/krickert/IdeaProjects/.cursor/debug.log", true)) {
-            long ts = System.currentTimeMillis();
-            String json = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(java.util.Map.of(
-                    "id", "log_" + ts,
-                    "timestamp", ts,
-                    "location", location,
-                    "message", message,
-                    "data", data,
-                    "sessionId", "debug-session",
-                    "runId", runId,
-                    "hypothesisId", hypothesisId
-            ));
-            fw.write(json + "\n");
-        } catch (Exception ignored) {
-            // Debug logging is optional; fail silently if Jackson is not available
-        }
-    }
-
-    private static java.util.Map<String, Object> listDeployments() {
-        java.io.File dir = new java.io.File("/deployments");
-        String[] files = dir.list();
-        return java.util.Map.of(
-                "exists", dir.exists(),
-                "files", files == null ? java.util.List.of() : java.util.List.of(files)
-        );
-    }
     // #endregion
 }

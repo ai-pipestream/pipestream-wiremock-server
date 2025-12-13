@@ -88,4 +88,33 @@ class DirectWireMockPerformanceTest {
         assertTrue(response.getSuccess(), "Upload should succeed");
         System.out.printf("Uploaded 100MB in %.3f ms%n", duration / 1_000_000.0);
     }
+
+    @Test
+    void testUploadLargePayload_1point2GB() {
+        // Create 1.2GB payload (approx 1288 MB)
+        // 1.2 * 1024 * 1024 * 1024 = 1288490188
+        int size = 1288490188;
+        
+        System.out.println("Allocating 1.2GB payload...");
+        // Note: This requires sufficient heap space (set maxHeapSize = "4g" in build.gradle)
+        byte[] largeData = new byte[size];
+        
+        UploadPipeDocRequest request = UploadPipeDocRequest.newBuilder()
+                .setDocument(PipeDoc.newBuilder()
+                        .setBlobBag(BlobBag.newBuilder()
+                                .setBlob(Blob.newBuilder()
+                                        .setData(ByteString.copyFrom(largeData))
+                                        .build())
+                                .build())
+                        .build())
+                .build();
+
+        System.out.println("Sending 1.2GB payload...");
+        long start = System.nanoTime();
+        UploadPipeDocResponse response = stub.uploadPipeDoc(request);
+        long duration = System.nanoTime() - start;
+
+        assertTrue(response.getSuccess(), "Upload should succeed");
+        System.out.printf("Uploaded 1.2GB in %.3f ms%n", duration / 1_000_000.0);
+    }
 }

@@ -17,9 +17,11 @@
 
 FROM registry.access.redhat.com/ubi9-minimal:9.5
 
-# Install Java 21 runtime (headless for smaller size) and update CVEs
+# Install Java 21 runtime, unzip for extraction, and curl for healthcheck
 RUN microdnf install -y \
     java-21-openjdk-headless \
+    unzip \
+    curl \
     ca-certificates \
     && microdnf update -y \
     && microdnf clean all \
@@ -28,17 +30,22 @@ RUN microdnf install -y \
 ENV LANGUAGE='en_US:en' \
     JAVA_OPTS_APPEND="-Djava.awt.headless=true"
 
-# Create deployment directory
-RUN mkdir -p /deployments && chown -R 185:185 /deployments
+# Use standard app directory like Jib
+WORKDIR /app
+RUN chown 185:185 /app
 
-# Copy only the shadow JAR (with classifier 'all', contains all dependencies)
-COPY --chown=185:185 build/libs/pipestream-wiremock-server-*-all.jar /deployments/app.jar
+# Copy the shadow JAR
+COPY --chown=185:185 build/libs/pipestream-wiremock-server-*-all.jar /app/app.jar
+
+# Explode the JAR to allow file-system based resource loading if needed
+USER 185
+RUN unzip -q /app/app.jar -d /app && rm /app/app.jar
 
 EXPOSE 8080 50052
-USER 185
 
 # Health check using WireMock admin endpoint
 HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8080/__admin/health || exit 1
 
-ENTRYPOINT ["java", "-jar", "/deployments/app.jar"]
+# Run with classpath pointing to current directory (exploded app)
+ENTRYPOINT ["java", "-cp", ".", "ai.pipestream.wiremock.server.Main"]

@@ -47,28 +47,31 @@ public class DirectWireMockGrpcServer {
     private static final Logger LOG = LoggerFactory.getLogger(DirectWireMockGrpcServer.class);
 
     private final Server grpcServer;
+    
+    public static final int DEFAULT_MAX_MESSAGE_SIZE = Integer.MAX_VALUE;
 
     /**
      * Construct a DirectWireMockGrpcServer.
      *
-     * @param wireMockServer        The existing WireMock server instance (unused currently but kept for potential future linkage).
+     * @param wireMockServer        The existing WireMock server instance.
      * @param grpcPort              The port to bind the streaming gRPC server to.
      * @param maxInboundMessageSize Max inbound message size in bytes.
      */
     public DirectWireMockGrpcServer(WireMockServer wireMockServer, int grpcPort, int maxInboundMessageSize) {
-        // wireMockServer unused in current implementation
-
-        // Create gRPC server
+        if (wireMockServer == null) {
+            throw new IllegalArgumentException("wireMockServer must not be null");
+        }
+        System.out.println("Initializing DirectWireMockGrpcServer on port " + grpcPort + " with maxInboundMessageSize: " + maxInboundMessageSize);
         this.grpcServer = ServerBuilder.forPort(grpcPort)
                 .maxInboundMessageSize(maxInboundMessageSize)
                 .addService(new PlatformRegistrationServiceImpl())
-                .addService(new NodeUploadServiceImpl()) // Add the performance stub
+                .addService(new NodeUploadServiceImpl())
                 .build();
     }
 
-    // Overload for backward compatibility (defaults to 500MB)
+    // Overload for backward compatibility (defaults to 2GB)
     public DirectWireMockGrpcServer(WireMockServer wireMockServer, int grpcPort) {
-        this(wireMockServer, grpcPort, 500 * 1024 * 1024);
+        this(wireMockServer, grpcPort, DEFAULT_MAX_MESSAGE_SIZE);
     }
 
     public void start() throws IOException {
