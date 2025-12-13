@@ -435,7 +435,7 @@ tasks.withType(Javadoc).configureEach { task ->
     opts.addStringOption('Xdoclint:-missing', '-quiet')
     
     // Exclude generated protobuf code from Javadoc
-    task.exclude('**/ai/pipestream/platform/registration/**')
+    task.exclude('**/ai/pipestream/platform/registration/**') 
     task.exclude('**/ai/pipestream/data/**')
     task.exclude('**/ai/pipestream/opensearch/**')
     task.exclude('**/com/google/**')
