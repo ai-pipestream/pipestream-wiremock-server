@@ -1,0 +1,17 @@
+{
+  "request": {
+    "method": "POST",
+    "urlPath": "/ai.pipestream.repository.filesystem.upload.v1.NodeUploadService/UploadPipeDoc"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "grpc-status-name": "OK"
+    },
+    "jsonBody": {
+      "success": true,
+      "document_id": "mock-doc-123",
+      "message": "Successfully uploaded to mock repository"
+    }
+  }
+}

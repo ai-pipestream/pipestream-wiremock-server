@@ -1,4 +1,5 @@
 import org.apache.tools.ant.filters.ReplaceTokens
+import org.gradle.plugins.ide.eclipse.model.SourceFolder
 import org.gradle.plugins.signing.Sign
 
 plugins {
@@ -298,9 +299,9 @@ eclipse {
         file {
             whenMerged { classpath ->
                 // Add generated protobuf sources to Eclipse classpath
-                def generatedJava = new org.gradle.plugins.ide.eclipse.model.SourceFolder(
+                def generatedJava = new SourceFolder(
                     'build/generated/sources/proto/main/java', null)
-                def generatedGrpc = new org.gradle.plugins.ide.eclipse.model.SourceFolder(
+                def generatedGrpc = new SourceFolder(
                     'build/generated/sources/proto/main/grpc', null)
                 classpath.entries.add(generatedJava)
                 classpath.entries.add(generatedGrpc)
@@ -311,13 +312,13 @@ eclipse {
 
 tasks.named('processResources').configure {
     dependsOn 'generateProto'
-    // Copy descriptor file to src/main/resources/META-INF/grpc so Jib will include it
+    // Copy descriptor file to src/main/resources/grpc so Jib will include it in the classpath root
     doLast {
         def descriptorFile = file("src/test/resources/wiremock/grpc/services.dsc")
         if (descriptorFile.exists()) {
             copy {
                 from descriptorFile
-                into "src/main/resources/META-INF/grpc"
+                into "src/main/resources/grpc"
                 rename { "services.dsc" }
             }
         }
@@ -354,7 +355,7 @@ tasks.named('processTestResources').configure {
     // Copy descriptor file to test resources wiremock/grpc so WireMock gRPC extension can find it in tests
     // WireMock expects it at src/test/resources/wiremock/grpc/services.dsc when using withRootDirectory
     doLast {
-        def descriptorFile = file("${buildDir}/generated/sources/proto/main/descriptor_set.desc")
+        def descriptorFile = layout.buildDirectory.file("generated/sources/proto/main/descriptor_set.desc").get().asFile
         if (descriptorFile.exists()) {
             // Copy to wiremock/grpc directory for withRootDirectory approach
             copy {
@@ -362,10 +363,10 @@ tasks.named('processTestResources').configure {
                 into "${projectDir}/src/test/resources/wiremock/grpc"
                 rename { "services.dsc" }
             }
-            // Also copy to META-INF/grpc for classpath approach (if needed)
+            // Also copy to grpc for classpath approach
             copy {
                 from descriptorFile
-                into "${buildDir}/resources/test/META-INF/grpc"
+                into layout.buildDirectory.dir("resources/test/grpc").get().asFile
                 rename { "services.dsc" }
             }
         }
@@ -375,6 +376,15 @@ tasks.named('processTestResources').configure {
             copy {
                 from serviceFile
                 into "${projectDir}/src/test/resources/META-INF/services"
+            }
+        }
+        
+        // Copy mappings to test resources so they are available on classpath at /mappings
+        def mappingsDir = file("${projectDir}/src/main/resources/mappings")
+        if (mappingsDir.exists()) {
+            copy {
+                from mappingsDir
+                into layout.buildDirectory.dir("resources/test/mappings").get().asFile
             }
         }
     }
@@ -419,6 +429,7 @@ test {
     testLogging {
         events "passed", "skipped", "failed"
         exceptionFormat "full"
+        showStandardStreams = true
     }
 }
 
