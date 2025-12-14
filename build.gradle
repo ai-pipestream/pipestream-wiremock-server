@@ -63,8 +63,7 @@ configurations.configureEach {
 tasks.register('syncCommonProtos', Exec) {
     group = 'protobuf'
     description = 'Exports common proto files from Buf Registry'
-    commandLine 'buf', 'export', 'buf.build/pipestreamai/common',
-            '--output', bufExportDir.get().asFile.path
+    commandLine 'bash', '-lc', "buf export buf.build/pipestreamai/common --output ${bufExportDir.get().asFile.path}"
     outputs.dir(bufExportDir)
     doFirst {
         bufExportDir.get().asFile.mkdirs()
@@ -75,8 +74,7 @@ tasks.register('syncCommonProtos', Exec) {
 tasks.register('syncPipelineModuleProtos', Exec) {
     group = 'protobuf'
     description = 'Exports pipeline-module proto files from Buf Registry'
-    commandLine 'buf', 'export', 'buf.build/pipestreamai/pipeline-module',
-            '--output', bufExportDir.get().asFile.path
+    commandLine 'bash', '-lc', "buf export buf.build/pipestreamai/pipeline-module --output ${bufExportDir.get().asFile.path}"
     outputs.dir(bufExportDir)
     dependsOn 'syncCommonProtos'
 }
@@ -84,8 +82,7 @@ tasks.register('syncPipelineModuleProtos', Exec) {
 tasks.register('syncConfigProtos', Exec) {
     group = 'protobuf'
     description = 'Exports config proto files from Buf Registry'
-    commandLine 'buf', 'export', 'buf.build/pipestreamai/config',
-            '--output', bufExportDir.get().asFile.path
+    commandLine 'bash', '-lc', "buf export buf.build/pipestreamai/config --output ${bufExportDir.get().asFile.path}"
     outputs.dir(bufExportDir)
     dependsOn 'syncCommonProtos'
 }
@@ -93,8 +90,7 @@ tasks.register('syncConfigProtos', Exec) {
 tasks.register('syncAdminProtos', Exec) {
     group = 'protobuf'
     description = 'Exports admin proto files from Buf Registry'
-    commandLine 'buf', 'export', 'buf.build/pipestreamai/admin',
-            '--output', bufExportDir.get().asFile.path
+    commandLine 'bash', '-lc', "buf export buf.build/pipestreamai/admin --output ${bufExportDir.get().asFile.path}"
     outputs.dir(bufExportDir)
     dependsOn 'syncCommonProtos'
 }
@@ -102,8 +98,7 @@ tasks.register('syncAdminProtos', Exec) {
 tasks.register('syncIntakeProtos', Exec) {
     group = 'protobuf'
     description = 'Exports intake proto files from Buf Registry'
-    commandLine 'buf', 'export', 'buf.build/pipestreamai/intake',
-            '--output', bufExportDir.get().asFile.path
+    commandLine 'bash', '-lc', "buf export buf.build/pipestreamai/intake --output ${bufExportDir.get().asFile.path}"
     outputs.dir(bufExportDir)
     dependsOn 'syncCommonProtos'
 }
@@ -111,8 +106,7 @@ tasks.register('syncIntakeProtos', Exec) {
 tasks.register('syncParserProtos', Exec) {
     group = 'protobuf'
     description = 'Exports parser proto files from Buf Registry'
-    commandLine 'buf', 'export', 'buf.build/pipestreamai/parser',
-            '--output', bufExportDir.get().asFile.path
+    commandLine 'bash', '-lc', "buf export buf.build/pipestreamai/parser --output ${bufExportDir.get().asFile.path}"
     outputs.dir(bufExportDir)
     dependsOn 'syncCommonProtos'
 }
@@ -120,8 +114,7 @@ tasks.register('syncParserProtos', Exec) {
 tasks.register('syncOpensearchProtos', Exec) {
     group = 'protobuf'
     description = 'Exports opensearch proto files from Buf Registry'
-    commandLine 'buf', 'export', 'buf.build/pipestreamai/opensearch',
-            '--output', bufExportDir.get().asFile.path
+    commandLine 'bash', '-lc', "buf export buf.build/pipestreamai/opensearch --output ${bufExportDir.get().asFile.path}"
     outputs.dir(bufExportDir)
     dependsOn 'syncCommonProtos'
 }
@@ -129,8 +122,7 @@ tasks.register('syncOpensearchProtos', Exec) {
 tasks.register('syncUiUxProtos', Exec) {
     group = 'protobuf'
     description = 'Exports ui-ux proto files from Buf Registry'
-    commandLine 'buf', 'export', 'buf.build/pipestreamai/ui-ux',
-            '--output', bufExportDir.get().asFile.path
+    commandLine 'bash', '-lc', "buf export buf.build/pipestreamai/ui-ux --output ${bufExportDir.get().asFile.path}"
     outputs.dir(bufExportDir)
     dependsOn 'syncCommonProtos'
 }
@@ -139,8 +131,7 @@ tasks.register('syncUiUxProtos', Exec) {
 tasks.register('syncRegistrationProtos', Exec) {
     group = 'protobuf'
     description = 'Exports registration proto files from Buf Registry'
-    commandLine 'buf', 'export', 'buf.build/pipestreamai/registration',
-            '--output', bufExportDir.get().asFile.path
+    commandLine 'bash', '-lc', "buf export buf.build/pipestreamai/registration --output ${bufExportDir.get().asFile.path}"
     outputs.dir(bufExportDir)
     dependsOn 'syncPipelineModuleProtos'
 }
@@ -148,8 +139,7 @@ tasks.register('syncRegistrationProtos', Exec) {
 tasks.register('syncEngineProtos', Exec) {
     group = 'protobuf'
     description = 'Exports engine proto files from Buf Registry'
-    commandLine 'buf', 'export', 'buf.build/pipestreamai/engine',
-            '--output', bufExportDir.get().asFile.path
+    commandLine 'bash', '-lc', "buf export buf.build/pipestreamai/engine --output ${bufExportDir.get().asFile.path}"
     outputs.dir(bufExportDir)
     dependsOn 'syncPipelineModuleProtos'
 }
@@ -157,8 +147,7 @@ tasks.register('syncEngineProtos', Exec) {
 tasks.register('syncLinearProcessorProtos', Exec) {
     group = 'protobuf'
     description = 'Exports linear-processor proto files from Buf Registry'
-    commandLine 'buf', 'export', 'buf.build/pipestreamai/linear-processor',
-            '--output', bufExportDir.get().asFile.path
+    commandLine 'bash', '-lc', "buf export buf.build/pipestreamai/linear-processor --output ${bufExportDir.get().asFile.path}"
     outputs.dir(bufExportDir)
     dependsOn 'syncPipelineModuleProtos'
 }
@@ -166,8 +155,7 @@ tasks.register('syncLinearProcessorProtos', Exec) {
 tasks.register('syncTestingHarnessProtos', Exec) {
     group = 'protobuf'
     description = 'Exports testing-harness proto files from Buf Registry'
-    commandLine 'buf', 'export', 'buf.build/pipestreamai/testing-harness',
-            '--output', bufExportDir.get().asFile.path
+    commandLine 'bash', '-lc', "buf export buf.build/pipestreamai/testing-harness --output ${bufExportDir.get().asFile.path}"
     outputs.dir(bufExportDir)
     dependsOn 'syncPipelineModuleProtos'
 }
@@ -176,8 +164,7 @@ tasks.register('syncTestingHarnessProtos', Exec) {
 tasks.register('syncDesignProtos', Exec) {
     group = 'protobuf'
     description = 'Exports design proto files from Buf Registry'
-    commandLine 'buf', 'export', 'buf.build/pipestreamai/design',
-            '--output', bufExportDir.get().asFile.path
+    commandLine 'bash', '-lc', "buf export buf.build/pipestreamai/design --output ${bufExportDir.get().asFile.path}"
     outputs.dir(bufExportDir)
     dependsOn 'syncConfigProtos'
 }
@@ -186,8 +173,7 @@ tasks.register('syncDesignProtos', Exec) {
 tasks.register('syncRepoProtos', Exec) {
     group = 'protobuf'
     description = 'Exports repo proto files from Buf Registry'
-    commandLine 'buf', 'export', 'buf.build/pipestreamai/repo',
-            '--output', bufExportDir.get().asFile.path
+    commandLine 'bash', '-lc', "buf export buf.build/pipestreamai/repo --output ${bufExportDir.get().asFile.path}"
     outputs.dir(bufExportDir)
     dependsOn 'syncConfigProtos', 'syncPipelineModuleProtos'
 }
@@ -227,6 +213,7 @@ dependencies {
     implementation libs.grpc.netty
     implementation libs.grpc.protobuf
     implementation libs.grpc.stub
+    implementation libs.grpc.services
     compileOnly libs.javax.annotation.api
 
     // Proto files are now fetched from Buf Registry via syncProtos task

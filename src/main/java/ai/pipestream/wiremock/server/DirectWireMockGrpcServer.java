@@ -1,8 +1,15 @@
 package ai.pipestream.wiremock.server;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
+import io.grpc.Context;
+import io.grpc.Contexts;
+import io.grpc.Metadata;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
+import io.grpc.ServerCall;
+import io.grpc.ServerCallHandler;
+import io.grpc.ServerInterceptor;
+import io.grpc.protobuf.services.ProtoReflectionService;
 import io.grpc.stub.StreamObserver;
 import ai.pipestream.platform.registration.v1.PlatformRegistrationServiceGrpc;
 import ai.pipestream.platform.registration.v1.RegistrationEvent;
@@ -47,8 +54,58 @@ public class DirectWireMockGrpcServer {
     private static final Logger LOG = LoggerFactory.getLogger(DirectWireMockGrpcServer.class);
 
     private final Server grpcServer;
-    
+
     public static final int DEFAULT_MAX_MESSAGE_SIZE = Integer.MAX_VALUE;
+
+    // Context keys for test metadata routing
+    public static final Context.Key<String> TEST_SCENARIO_KEY = Context.key("test-scenario");
+    public static final Context.Key<String> TEST_DOC_ID_KEY = Context.key("test-doc-id");
+    public static final Context.Key<Integer> TEST_DELAY_MS_KEY = Context.key("test-delay-ms");
+
+    // Metadata keys that clients send as headers
+    private static final Metadata.Key<String> SCENARIO_HEADER =
+            Metadata.Key.of("x-test-scenario", Metadata.ASCII_STRING_MARSHALLER);
+    private static final Metadata.Key<String> DOC_ID_HEADER =
+            Metadata.Key.of("x-test-doc-id", Metadata.ASCII_STRING_MARSHALLER);
+    private static final Metadata.Key<String> DELAY_MS_HEADER =
+            Metadata.Key.of("x-test-delay-ms", Metadata.ASCII_STRING_MARSHALLER);
+
+    /**
+     * Interceptor that extracts test routing metadata from gRPC headers
+     * and attaches them to the gRPC Context for use in service implementations.
+     */
+    private static class TestMetadataInterceptor implements ServerInterceptor {
+        @Override
+        public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(
+                ServerCall<ReqT, RespT> call,
+                Metadata headers,
+                ServerCallHandler<ReqT, RespT> next) {
+
+            Context ctx = Context.current();
+
+            String scenario = headers.get(SCENARIO_HEADER);
+            if (scenario != null) {
+                ctx = ctx.withValue(TEST_SCENARIO_KEY, scenario);
+                LOG.debug("Test scenario header: {}", scenario);
+            }
+
+            String docId = headers.get(DOC_ID_HEADER);
+            if (docId != null) {
+                ctx = ctx.withValue(TEST_DOC_ID_KEY, docId);
+            }
+
+            String delayStr = headers.get(DELAY_MS_HEADER);
+            if (delayStr != null) {
+                try {
+                    ctx = ctx.withValue(TEST_DELAY_MS_KEY, Integer.parseInt(delayStr));
+                } catch (NumberFormatException ignored) {
+                    // Ignore invalid delay values
+                }
+            }
+
+            return Contexts.interceptCall(ctx, call, headers, next);
+        }
+    }
 
     /**
      * Construct a DirectWireMockGrpcServer.
@@ -64,8 +121,10 @@ public class DirectWireMockGrpcServer {
         System.out.println("Initializing DirectWireMockGrpcServer on port " + grpcPort + " with maxInboundMessageSize: " + maxInboundMessageSize);
         this.grpcServer = ServerBuilder.forPort(grpcPort)
                 .maxInboundMessageSize(maxInboundMessageSize)
+                .intercept(new TestMetadataInterceptor())
                 .addService(new PlatformRegistrationServiceImpl())
                 .addService(new NodeUploadServiceImpl())
+                .addService(ProtoReflectionService.newInstance())
                 .build();
     }
 
@@ -95,32 +154,108 @@ public class DirectWireMockGrpcServer {
     }
 
     /**
-     * High-performance "Black Hole" implementation of NodeUploadService.
+     * High-performance implementation of NodeUploadService with test routing support.
      * <p>
-     * Used for benchmarking throughput without the overhead of WireMock's JSON conversion.
-     * It accepts large payloads (e.g., 250MB) and returns success immediately.
+     * Supports metadata-based routing via gRPC headers:
+     * <ul>
+     *   <li>{@code x-test-scenario}: Controls behavior (success, failure, timeout, etc.)</li>
+     *   <li>{@code x-test-doc-id}: Returns a specific document ID</li>
+     *   <li>{@code x-test-delay-ms}: Adds artificial delay in milliseconds</li>
+     * </ul>
+     * <p>
+     * Supported scenarios:
+     * <ul>
+     *   <li>{@code success} (default): Returns success with generated doc ID</li>
+     *   <li>{@code failure}: Returns failure with error message</li>
+     *   <li>{@code not-found}: Returns GRPC NOT_FOUND status</li>
+     *   <li>{@code unavailable}: Returns GRPC UNAVAILABLE status</li>
+     *   <li>{@code echo-size}: Returns success with size info in message</li>
+     * </ul>
      */
     private static class NodeUploadServiceImpl extends NodeUploadServiceGrpc.NodeUploadServiceImplBase {
         @Override
         public void uploadPipeDoc(UploadPipeDocRequest request, StreamObserver<UploadPipeDocResponse> responseObserver) {
-            // "Black hole" - simply acknowledge receipt
-            // The request payload has already been deserialized by gRPC (Netty), which is unavoidable,
-            // but we avoid the WireMock JSON serialization step.
-            
-            // Optional: Log size for debug (might impact perf if logging full object)
             int size = request.getSerializedSize();
+            String scenario = TEST_SCENARIO_KEY.get();
+            String customDocId = TEST_DOC_ID_KEY.get();
+            Integer delayMs = TEST_DELAY_MS_KEY.get();
+
             if (LOG.isDebugEnabled()) {
-                LOG.debug("DirectWireMock: Received uploadPipeDoc, size=" + size + " bytes");
+                LOG.debug("DirectWireMock: uploadPipeDoc size={} bytes, scenario={}, docId={}, delay={}",
+                        size, scenario, customDocId, delayMs);
             }
 
-            UploadPipeDocResponse response = UploadPipeDocResponse.newBuilder()
-                    .setSuccess(true)
-                    .setDocumentId("perf-mock-doc-" + System.currentTimeMillis())
-                    .setMessage("Direct mock upload successful (size=" + size + ")")
-                    .build();
+            // Apply artificial delay if specified
+            if (delayMs != null && delayMs > 0) {
+                try {
+                    Thread.sleep(delayMs);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    responseObserver.onError(io.grpc.Status.CANCELLED
+                            .withDescription("Interrupted during delay")
+                            .asRuntimeException());
+                    return;
+                }
+            }
 
-            responseObserver.onNext(response);
-            responseObserver.onCompleted();
+            // Route based on scenario
+            if (scenario == null || scenario.isEmpty() || "success".equals(scenario)) {
+                // Default success scenario
+                String docId = customDocId != null ? customDocId : "mock-doc-" + System.currentTimeMillis();
+                UploadPipeDocResponse response = UploadPipeDocResponse.newBuilder()
+                        .setSuccess(true)
+                        .setDocumentId(docId)
+                        .setMessage("Direct mock upload successful (size=" + size + " bytes)")
+                        .build();
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+
+            } else if ("failure".equals(scenario)) {
+                // Simulated failure
+                UploadPipeDocResponse response = UploadPipeDocResponse.newBuilder()
+                        .setSuccess(false)
+                        .setDocumentId("")
+                        .setMessage("Simulated upload failure for testing")
+                        .build();
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+
+            } else if ("not-found".equals(scenario)) {
+                // gRPC NOT_FOUND status
+                responseObserver.onError(io.grpc.Status.NOT_FOUND
+                        .withDescription("Simulated NOT_FOUND for testing")
+                        .asRuntimeException());
+
+            } else if ("unavailable".equals(scenario)) {
+                // gRPC UNAVAILABLE status (simulates service down)
+                responseObserver.onError(io.grpc.Status.UNAVAILABLE
+                        .withDescription("Simulated service unavailable for testing")
+                        .asRuntimeException());
+
+            } else if ("echo-size".equals(scenario)) {
+                // Echo request details
+                String docId = customDocId != null ? customDocId : "echo-" + System.currentTimeMillis();
+                String docType = request.hasDocument() ? request.getDocument().getClass().getSimpleName() : "none";
+                UploadPipeDocResponse response = UploadPipeDocResponse.newBuilder()
+                        .setSuccess(true)
+                        .setDocumentId(docId)
+                        .setMessage(String.format("Echo: size=%d bytes, docType=%s", size, docType))
+                        .build();
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+
+            } else {
+                // Unknown scenario - treat as success but log warning
+                LOG.warn("Unknown test scenario: '{}', treating as success", scenario);
+                String docId = customDocId != null ? customDocId : "unknown-scenario-" + System.currentTimeMillis();
+                UploadPipeDocResponse response = UploadPipeDocResponse.newBuilder()
+                        .setSuccess(true)
+                        .setDocumentId(docId)
+                        .setMessage("Unknown scenario '" + scenario + "', defaulted to success")
+                        .build();
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+            }
         }
     }
 

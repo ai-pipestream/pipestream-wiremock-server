@@ -22,6 +22,7 @@ protobuf-java-util = { module = "com.google.protobuf:protobuf-java-util", versio
 grpc-netty = { module = "io.grpc:grpc-netty", version.ref = "grpc" }
 grpc-protobuf = { module = "io.grpc:grpc-protobuf", version.ref = "grpc" }
 grpc-stub = { module = "io.grpc:grpc-stub", version.ref = "grpc" }
+grpc-services = { module = "io.grpc:grpc-services", version.ref = "grpc" }
 javax-annotation-api = { module = "javax.annotation:javax.annotation-api", version.ref = "javax-annotation" }
 proto-google-common-protos = { module = "com.google.api.grpc:proto-google-common-protos", version.ref = "proto-google-common-protos" }
 
