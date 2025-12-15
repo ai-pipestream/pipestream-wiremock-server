@@ -10,10 +10,10 @@ plugins {
     id 'signing'
     id 'eclipse'
     alias(libs.plugins.jib)
-    alias(libs.plugins.protobuf)
     alias(libs.plugins.nmcp)
     alias(libs.plugins.shadow)
     id 'idea'
+    id 'ai.pipestream.proto-toolchain' version '0.7.2'
 }
 
 scmVersion {
@@ -43,10 +43,6 @@ repositories {
 }
 
 def protobufVersion = libs.versions.protobuf.java.get()
-def grpcVersion = libs.versions.grpc.get()
-
-// Define where we want to download the schemas from Buf Registry
-def bufExportDir = layout.buildDirectory.dir("generated/buf-protos")
 
 configurations.configureEach {
     resolutionStrategy {
@@ -55,147 +51,85 @@ configurations.configureEach {
     }
 }
 
-// Task to sync proto files from Buf Schema Registry
-// This replaces the Maven artifact dependency on pipestream-protos
-// All modules are synced in dependency order to ensure proper resolution
+// Proto toolchain configuration - fetches from Git and generates Java/gRPC code
+pipestreamProtos {
+    sourceMode = 'git'
+    generateMutiny = false  // Not a Quarkus project
+    generateDescriptors = true
+    descriptorPath = layout.buildDirectory.file("descriptors/services.dsc")
 
-// Base module with no dependencies
-tasks.register('syncCommonProtos', Exec) {
-    group = 'protobuf'
-    description = 'Exports common proto files from Buf Registry'
-    commandLine 'bash', '-lc', "buf export buf.build/pipestreamai/common --output ${bufExportDir.get().asFile.path}"
-    outputs.dir(bufExportDir)
-    doFirst {
-        bufExportDir.get().asFile.mkdirs()
+    modules {
+        register("common") {
+            gitRepo = "https://github.com/ai-pipestream/pipestream-protos.git"
+            gitRef = "main"
+            gitSubdir = "common"
+        }
+        register("pipeline-module") {
+            gitRepo = "https://github.com/ai-pipestream/pipestream-protos.git"
+            gitRef = "main"
+            gitSubdir = "pipeline-module"
+        }
+        register("config") {
+            gitRepo = "https://github.com/ai-pipestream/pipestream-protos.git"
+            gitRef = "main"
+            gitSubdir = "config"
+        }
+        register("admin") {
+            gitRepo = "https://github.com/ai-pipestream/pipestream-protos.git"
+            gitRef = "main"
+            gitSubdir = "admin"
+        }
+        register("intake") {
+            gitRepo = "https://github.com/ai-pipestream/pipestream-protos.git"
+            gitRef = "main"
+            gitSubdir = "intake"
+        }
+        register("parser") {
+            gitRepo = "https://github.com/ai-pipestream/pipestream-protos.git"
+            gitRef = "main"
+            gitSubdir = "parser"
+        }
+        register("opensearch") {
+            gitRepo = "https://github.com/ai-pipestream/pipestream-protos.git"
+            gitRef = "main"
+            gitSubdir = "opensearch"
+        }
+        register("ui-ux") {
+            gitRepo = "https://github.com/ai-pipestream/pipestream-protos.git"
+            gitRef = "main"
+            gitSubdir = "ui-ux"
+        }
+        register("registration") {
+            gitRepo = "https://github.com/ai-pipestream/pipestream-protos.git"
+            gitRef = "main"
+            gitSubdir = "registration"
+        }
+        register("engine") {
+            gitRepo = "https://github.com/ai-pipestream/pipestream-protos.git"
+            gitRef = "main"
+            gitSubdir = "engine"
+        }
+        register("linear-processor") {
+            gitRepo = "https://github.com/ai-pipestream/pipestream-protos.git"
+            gitRef = "main"
+            gitSubdir = "linear-processor"
+        }
+        register("testing-harness") {
+            gitRepo = "https://github.com/ai-pipestream/pipestream-protos.git"
+            gitRef = "main"
+            gitSubdir = "testing-harness"
+        }
+        register("design") {
+            gitRepo = "https://github.com/ai-pipestream/pipestream-protos.git"
+            gitRef = "main"
+            gitSubdir = "design"
+        }
+        register("repo") {
+            gitRepo = "https://github.com/ai-pipestream/pipestream-protos.git"
+            gitRef = "main"
+            gitSubdir = "repo"
+        }
     }
-}
-
-// Modules that depend only on common
-tasks.register('syncPipelineModuleProtos', Exec) {
-    group = 'protobuf'
-    description = 'Exports pipeline-module proto files from Buf Registry'
-    commandLine 'bash', '-lc', "buf export buf.build/pipestreamai/pipeline-module --output ${bufExportDir.get().asFile.path}"
-    outputs.dir(bufExportDir)
-    dependsOn 'syncCommonProtos'
-}
-
-tasks.register('syncConfigProtos', Exec) {
-    group = 'protobuf'
-    description = 'Exports config proto files from Buf Registry'
-    commandLine 'bash', '-lc', "buf export buf.build/pipestreamai/config --output ${bufExportDir.get().asFile.path}"
-    outputs.dir(bufExportDir)
-    dependsOn 'syncCommonProtos'
-}
-
-tasks.register('syncAdminProtos', Exec) {
-    group = 'protobuf'
-    description = 'Exports admin proto files from Buf Registry'
-    commandLine 'bash', '-lc', "buf export buf.build/pipestreamai/admin --output ${bufExportDir.get().asFile.path}"
-    outputs.dir(bufExportDir)
-    dependsOn 'syncCommonProtos'
-}
-
-tasks.register('syncIntakeProtos', Exec) {
-    group = 'protobuf'
-    description = 'Exports intake proto files from Buf Registry'
-    commandLine 'bash', '-lc', "buf export buf.build/pipestreamai/intake --output ${bufExportDir.get().asFile.path}"
-    outputs.dir(bufExportDir)
-    dependsOn 'syncCommonProtos'
-}
-
-tasks.register('syncParserProtos', Exec) {
-    group = 'protobuf'
-    description = 'Exports parser proto files from Buf Registry'
-    commandLine 'bash', '-lc', "buf export buf.build/pipestreamai/parser --output ${bufExportDir.get().asFile.path}"
-    outputs.dir(bufExportDir)
-    dependsOn 'syncCommonProtos'
-}
-
-tasks.register('syncOpensearchProtos', Exec) {
-    group = 'protobuf'
-    description = 'Exports opensearch proto files from Buf Registry'
-    commandLine 'bash', '-lc', "buf export buf.build/pipestreamai/opensearch --output ${bufExportDir.get().asFile.path}"
-    outputs.dir(bufExportDir)
-    dependsOn 'syncCommonProtos'
-}
-
-tasks.register('syncUiUxProtos', Exec) {
-    group = 'protobuf'
-    description = 'Exports ui-ux proto files from Buf Registry'
-    commandLine 'bash', '-lc', "buf export buf.build/pipestreamai/ui-ux --output ${bufExportDir.get().asFile.path}"
-    outputs.dir(bufExportDir)
-    dependsOn 'syncCommonProtos'
-}
-
-// Modules that depend on common + pipeline-module
-tasks.register('syncRegistrationProtos', Exec) {
-    group = 'protobuf'
-    description = 'Exports registration proto files from Buf Registry'
-    commandLine 'bash', '-lc', "buf export buf.build/pipestreamai/registration --output ${bufExportDir.get().asFile.path}"
-    outputs.dir(bufExportDir)
-    dependsOn 'syncPipelineModuleProtos'
-}
-
-tasks.register('syncEngineProtos', Exec) {
-    group = 'protobuf'
-    description = 'Exports engine proto files from Buf Registry'
-    commandLine 'bash', '-lc', "buf export buf.build/pipestreamai/engine --output ${bufExportDir.get().asFile.path}"
-    outputs.dir(bufExportDir)
-    dependsOn 'syncPipelineModuleProtos'
-}
-
-tasks.register('syncLinearProcessorProtos', Exec) {
-    group = 'protobuf'
-    description = 'Exports linear-processor proto files from Buf Registry'
-    commandLine 'bash', '-lc', "buf export buf.build/pipestreamai/linear-processor --output ${bufExportDir.get().asFile.path}"
-    outputs.dir(bufExportDir)
-    dependsOn 'syncPipelineModuleProtos'
-}
-
-tasks.register('syncTestingHarnessProtos', Exec) {
-    group = 'protobuf'
-    description = 'Exports testing-harness proto files from Buf Registry'
-    commandLine 'bash', '-lc', "buf export buf.build/pipestreamai/testing-harness --output ${bufExportDir.get().asFile.path}"
-    outputs.dir(bufExportDir)
-    dependsOn 'syncPipelineModuleProtos'
-}
-
-// Modules that depend on common + config
-tasks.register('syncDesignProtos', Exec) {
-    group = 'protobuf'
-    description = 'Exports design proto files from Buf Registry'
-    commandLine 'bash', '-lc', "buf export buf.build/pipestreamai/design --output ${bufExportDir.get().asFile.path}"
-    outputs.dir(bufExportDir)
-    dependsOn 'syncConfigProtos'
-}
-
-// Modules that depend on common + pipeline-module + config
-tasks.register('syncRepoProtos', Exec) {
-    group = 'protobuf'
-    description = 'Exports repo proto files from Buf Registry'
-    commandLine 'bash', '-lc', "buf export buf.build/pipestreamai/repo --output ${bufExportDir.get().asFile.path}"
-    outputs.dir(bufExportDir)
-    dependsOn 'syncConfigProtos', 'syncPipelineModuleProtos'
-}
-
-// Aggregate task that syncs all protos
-tasks.register('syncProtos') {
-    group = 'protobuf'
-    description = 'Syncs all proto definitions from Buf Registry'
-    dependsOn 'syncCommonProtos',
-            'syncPipelineModuleProtos',
-            'syncConfigProtos',
-            'syncAdminProtos',
-            'syncIntakeProtos',
-            'syncParserProtos',
-            'syncOpensearchProtos',
-            'syncUiUxProtos',
-            'syncRegistrationProtos',
-            'syncEngineProtos',
-            'syncLinearProcessorProtos',
-            'syncTestingHarnessProtos',
-            'syncDesignProtos',
-            'syncRepoProtos'
 }
 
 dependencies {
@@ -216,55 +150,16 @@ dependencies {
     implementation libs.grpc.services
     compileOnly libs.javax.annotation.api
 
-    // Proto files are now fetched from Buf Registry via syncProtos task
-    // Keep Google Common Protos as library to avoid conflicts with protobuf-java-util
-    protobuf libs.proto.google.common.protos
-
     // Test dependencies
     testImplementation 'org.junit.jupiter:junit-jupiter:6.0.1'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
-protobuf {
-    protoc {
-        // Use an older protoc that matches our forced runtime
-        artifact = "com.google.protobuf:protoc:${protobufVersion}"
-    }
-    plugins {
-        grpc {
-            artifact = "io.grpc:protoc-gen-grpc-java:${grpcVersion}"
-        }
-    }
-    generateProtoTasks {
-        all()*.plugins {
-            grpc {}
-        }
-        all().each { task ->
-            task.generateDescriptorSet = true
-            task.descriptorSetOptions.includeSourceInfo = true
-            task.descriptorSetOptions.includeImports = true
-            // Generate descriptor to a build directory that will be included in the main resources
-            task.descriptorSetOptions.path = layout.buildDirectory.file("generated/resources/proto/main/grpc/services.dsc").get().asFile.path
-        }
-    }
-}
-
-// Configure source sets
+// Configure source sets for proto-toolchain generated code
 sourceSets {
     main {
-        proto {
-            // Tell Gradle's Protobuf Plugin to look in the buf-exported folder
-            srcDir bufExportDir
-        }
-        // resources {
-        //    // Add the generated descriptor set to resources so it appears at classpath root /grpc/services.dsc
-        //    srcDir layout.buildDirectory.dir("generated/resources/proto/main")
-        // }
-    }
-    test {
-        resources {
-            // Add the generated descriptor set to test resources as well
-            srcDir layout.buildDirectory.dir("generated/resources/proto/main")
+        java {
+            srcDir layout.buildDirectory.dir("generated/source/proto/main/java")
         }
     }
 }
@@ -272,10 +167,8 @@ sourceSets {
 // Configure IntelliJ IDEA to recognize generated sources
 idea {
     module {
-        sourceDirs += file('build/generated/sources/proto/main/java')
-        sourceDirs += file('build/generated/sources/proto/main/grpc')
-        generatedSourceDirs += file('build/generated/sources/proto/main/java')
-        generatedSourceDirs += file('build/generated/sources/proto/main/grpc')
+        sourceDirs += file('build/generated/source/proto/main/java')
+        generatedSourceDirs += file('build/generated/source/proto/main/java')
     }
 }
 
@@ -286,18 +179,15 @@ eclipse {
             whenMerged { classpath ->
                 // Add generated protobuf sources to Eclipse classpath
                 def generatedJava = new SourceFolder(
-                    'build/generated/sources/proto/main/java', null)
-                def generatedGrpc = new SourceFolder(
-                    'build/generated/sources/proto/main/grpc', null)
+                    'build/generated/source/proto/main/java', null)
                 classpath.entries.add(generatedJava)
-                classpath.entries.add(generatedGrpc)
             }
         }
     }
 }
 
 tasks.named('processResources').configure {
-    dependsOn 'generateProto'
+    dependsOn 'generateProtos'
 }
 
 // Shadow JAR configuration for Docker container - replaces the jar task
@@ -326,23 +216,21 @@ distZip.dependsOn shadowJar
 startScripts.dependsOn shadowJar
 
 tasks.named('processTestResources').configure {
-    dependsOn 'generateProto', 'generateTestProto'
+    dependsOn 'generateProtos', 'buildDescriptors'
     // Copy descriptor file to test resources wiremock/grpc so WireMock gRPC extension can find it in tests
     // WireMock expects it at src/test/resources/wiremock/grpc/services.dsc when using withRootDirectory
     doLast {
-        def descriptorFile = layout.buildDirectory.file("generated/sources/proto/main/descriptor_set.desc").get().asFile
+        def descriptorFile = layout.buildDirectory.file("descriptors/services.dsc").get().asFile
         if (descriptorFile.exists()) {
             // Copy to wiremock/grpc directory for withRootDirectory approach
             copy {
                 from descriptorFile
                 into "${projectDir}/src/test/resources/wiremock/grpc"
-                rename { "services.dsc" }
             }
             // Also copy to grpc for classpath approach
             copy {
                 from descriptorFile
                 into layout.buildDirectory.dir("resources/test/grpc").get().asFile
-                rename { "services.dsc" }
             }
         }
         // Copy ServiceLoader service file to test resources
@@ -353,7 +241,7 @@ tasks.named('processTestResources').configure {
                 into "${projectDir}/src/test/resources/META-INF/services"
             }
         }
-        
+
         // Copy mappings to test resources so they are available on classpath at /mappings
         def mappingsDir = file("${projectDir}/src/main/resources/mappings")
         if (mappingsDir.exists()) {
@@ -365,22 +253,12 @@ tasks.named('processTestResources').configure {
     }
 }
 
-// Wire up task dependencies
-// Before you generate Java code, you must fetch the protos from Buf
-tasks.named('generateProto').configure {
-    dependsOn 'syncProtos'
-
-    doFirst {
-        mkdir layout.buildDirectory.dir("generated/resources/proto/main/META-INF/grpc").get().asFile
-    }
-}
-
 // Explicit dependencies to resolve Gradle 8+ validation errors
 tasks.withType(Jar).configureEach {
-    dependsOn 'generateProto'
+    dependsOn 'generateProtos'
 }
 tasks.withType(Javadoc).configureEach {
-    dependsOn 'generateProto'
+    dependsOn 'generateProtos'
 }
 
 application {
@@ -392,6 +270,11 @@ java {
     targetCompatibility = JavaVersion.VERSION_21
     withJavadocJar()
     withSourcesJar()
+}
+
+// Handle duplicate source files from multi-module proto generation
+tasks.named('sourcesJar').configure {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
 compileJava {
