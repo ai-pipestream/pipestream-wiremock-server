@@ -298,7 +298,7 @@ test {
     maxParallelForks = 1
     testLogging {
         events "passed", "skipped", "failed"
-        exceptionFormat "full"
+        exceptionFormat = "full"
         showStandardStreams = true
     }
 }
