@@ -5,7 +5,7 @@ slf4j = "2.0.17"
 protobuf-java = "4.33.2"
 grpc = "1.77.0"
 javax-annotation = "1.3.2"
-proto-google-common-protos = "2.63.1"
+proto-google-common-protos = "2.63.2"
 
 # Plugins
 axion-release = "1.21.1"
