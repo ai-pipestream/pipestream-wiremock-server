@@ -11,7 +11,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.wiremock.grpc.GrpcExtensionFactory;
-import org.wiremock.grpc.dsl.WireMockGrpc;
 
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.junit.jupiter.api.Assertions.*;
@@ -37,10 +36,10 @@ public class AccountManagerMockTest {
     @BeforeEach
     void setUp() {
         // Start WireMock server with gRPC extension
-        // Use withRootDirectory like reference examples - expects descriptors at wiremock/grpc/
+        // Use build directory for generated resources (not source directory)
         WireMockConfiguration config = wireMockConfig()
                 .dynamicPort()
-                .withRootDirectory("src/test/resources/wiremock")
+                .withRootDirectory("build/resources/test/wiremock")
                 .extensions(new GrpcExtensionFactory());
 
         wireMockServer = new WireMockServer(config);
@@ -131,9 +130,7 @@ public class AccountManagerMockTest {
                 .setAccountId("nonexistent-account")
                 .build();
 
-        StatusRuntimeException exception = assertThrows(StatusRuntimeException.class, () -> {
-            accountServiceStub.getAccount(request);
-        });
+        StatusRuntimeException exception = assertThrows(StatusRuntimeException.class, () -> accountServiceStub.getAccount(request));
 
         // Verify the error
         assertEquals(io.grpc.Status.Code.NOT_FOUND, exception.getStatus().getCode());
@@ -180,9 +177,7 @@ public class AccountManagerMockTest {
 
         // Now the call should fail (no matching stub)
         // In WireMock 4, this might return UNIMPLEMENTED instead of NOT_FOUND
-        StatusRuntimeException exception = assertThrows(StatusRuntimeException.class, () -> {
-            accountServiceStub.getAccount(request);
-        });
+        StatusRuntimeException exception = assertThrows(StatusRuntimeException.class, () -> accountServiceStub.getAccount(request));
         // Accept either UNIMPLEMENTED (WireMock 4 default) or NOT_FOUND
         assertTrue(
             exception.getStatus().getCode() == io.grpc.Status.Code.UNIMPLEMENTED ||

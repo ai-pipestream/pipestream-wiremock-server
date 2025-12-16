@@ -2,6 +2,9 @@ import org.apache.tools.ant.filters.ReplaceTokens
 import org.gradle.plugins.ide.eclipse.model.SourceFolder
 import org.gradle.plugins.signing.Sign
 
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+
 plugins {
     alias(libs.plugins.axion.release)
     id 'java'
@@ -13,7 +16,7 @@ plugins {
     alias(libs.plugins.nmcp)
     alias(libs.plugins.shadow)
     id 'idea'
-    id 'ai.pipestream.proto-toolchain' version '0.7.4'
+    id 'ai.pipestream.proto-toolchain' version '0.7.5'
 }
 
 scmVersion {
@@ -57,10 +60,9 @@ pipestreamProtos {
     generateMutiny = false  // Not a Quarkus project
     generateDescriptors = true
     descriptorPath = layout.buildDirectory.file("descriptors/services.dsc")
-    // Automatically copy descriptors to WireMock-expected locations
+    // Automatically copy descriptors to test build resources (build directory only)
     copyDescriptorsToResources = true
-    testResourcesDir = layout.projectDirectory.dir("src/test/resources/wiremock/grpc")
-    testBuildDir = layout.buildDirectory.dir("resources/test/grpc")
+    testBuildDir = layout.buildDirectory.dir("resources/test/wiremock/grpc")
 
     modules {
         register("common") {
@@ -219,27 +221,40 @@ distTar.dependsOn shadowJar
 distZip.dependsOn shadowJar
 startScripts.dependsOn shadowJar
 
+// Capture paths during configuration phase for configuration cache compatibility
+def projectDirPath = project.layout.projectDirectory.asFile.absolutePath
+def testResourcesMappingsDir = project.layout.buildDirectory.dir("resources/test/mappings").get().asFile.absolutePath
+
 tasks.named('processTestResources').configure {
     dependsOn 'generateProtos', 'buildDescriptors', 'copyDescriptorsToResources'
     // Descriptor copying is now handled by copyDescriptorsToResources task (proto-toolchain plugin)
-    // WireMock expects it at src/test/resources/wiremock/grpc/services.dsc when using withRootDirectory
+    // WireMock expects it at build/resources/test/wiremock/grpc/services.dsc when using withRootDirectory
     
-    // Copy ServiceLoader service file to test resources
+    // Copy ServiceLoader service file and mappings to test resources
     doLast {
-        def serviceFile = file("${projectDir}/src/main/resources/META-INF/services/ai.pipestream.wiremock.client.ServiceMockInitializer")
+        // Use Java Files API for configuration cache compatibility (avoid Gradle script methods)
+        def serviceFile = new File("${projectDirPath}/src/main/resources/META-INF/services/ai.pipestream.wiremock.client.ServiceMockInitializer")
         if (serviceFile.exists()) {
-            copy {
-                from serviceFile
-                into "${projectDir}/src/test/resources/META-INF/services"
-            }
+            def targetDir = new File("${projectDirPath}/src/test/resources/META-INF/services")
+            targetDir.mkdirs()
+            Files.copy(
+                serviceFile.toPath(),
+                new File(targetDir, serviceFile.name).toPath(),
+                    StandardCopyOption.REPLACE_EXISTING
+            )
         }
 
         // Copy mappings to test resources so they are available on classpath at /mappings
-        def mappingsDir = file("${projectDir}/src/main/resources/mappings")
-        if (mappingsDir.exists()) {
-            copy {
-                from mappingsDir
-                into layout.buildDirectory.dir("resources/test/mappings").get().asFile
+        def mappingsDir = new File("${projectDirPath}/src/main/resources/mappings")
+        if (mappingsDir.exists() && mappingsDir.isDirectory()) {
+            def targetMappingsDir = new File(testResourcesMappingsDir)
+            targetMappingsDir.mkdirs()
+            mappingsDir.eachFile { file ->
+                Files.copy(
+                    file.toPath(),
+                    new File(targetMappingsDir, file.name).toPath(),
+                        StandardCopyOption.REPLACE_EXISTING
+                )
             }
         }
     }
@@ -277,6 +292,10 @@ compileJava {
 test {
     useJUnitPlatform()
     maxHeapSize = "8g"
+    // Run test classes sequentially to avoid XML test result file writing conflicts
+    // This is a known issue when multiple test forks write to the same XML files simultaneously
+    // With only 6 test classes, the performance impact is minimal
+    maxParallelForks = 1
     testLogging {
         events "passed", "skipped", "failed"
         exceptionFormat "full"

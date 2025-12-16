@@ -15,12 +15,12 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '21'
           distribution: 'temurin'
@@ -31,10 +31,10 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v5
 
       - name: Build with Gradle
-        run: ./gradlew build --no-daemon
+        run: ./gradlew build --no-daemon --configuration-cache
 
       - name: Publish Snapshots to Maven Central
         env:
@@ -42,13 +42,13 @@ jobs:
           MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-        run: ./gradlew publishAllPublicationsToCentralPortalSnapshots --no-daemon
+        run: ./gradlew publishAllPublicationsToCentralPortalSnapshots --no-daemon --configuration-cache
 
       - name: Publish Snapshots to GitHub Packages
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: ./gradlew publishMavenPublicationToGitHubPackagesRepository --no-daemon
+        run: ./gradlew publishMavenPublicationToGitHubPackagesRepository --no-daemon --configuration-cache
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3

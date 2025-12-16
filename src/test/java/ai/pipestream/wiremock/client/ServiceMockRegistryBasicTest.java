@@ -44,7 +44,7 @@ public class ServiceMockRegistryBasicTest {
         // Start WireMock server
         WireMockConfiguration config = wireMockConfig()
                 .dynamicPort()
-                .withRootDirectory("src/test/resources/wiremock")
+                .withRootDirectory("build/resources/test/wiremock")
                 .extensions(new GrpcExtensionFactory());
 
         WireMockServer wireMockServer = new WireMockServer(config);
@@ -55,9 +55,7 @@ public class ServiceMockRegistryBasicTest {
             ServiceMockRegistry registry = new ServiceMockRegistry();
             
             // Should not throw when initializing
-            assertDoesNotThrow(() -> {
-                registry.initializeAll(wireMock);
-            });
+            assertDoesNotThrow(() -> registry.initializeAll(wireMock));
             
             // Verify registry has initializers
             assertTrue(registry.getInitializerCount() > 0);
@@ -70,7 +68,7 @@ public class ServiceMockRegistryBasicTest {
     void testAccountManagerMock_ImplementsServiceMockInitializer() {
         // Verify AccountManagerMock implements the interface
         AccountManagerMock mock = new AccountManagerMock();
-        assertTrue(mock instanceof ServiceMockInitializer);
+        assertInstanceOf(ServiceMockInitializer.class, mock);
         // Service name format: ai.pipestream.repository.account.v1.AccountService
         assertEquals("ai.pipestream.repository.account.v1.AccountService", mock.getServiceName());
     }
@@ -80,7 +78,7 @@ public class ServiceMockRegistryBasicTest {
         // Start WireMock server
         WireMockConfiguration config = wireMockConfig()
                 .dynamicPort()
-                .withRootDirectory("src/test/resources/wiremock")
+                .withRootDirectory("build/resources/test/wiremock")
                 .extensions(new GrpcExtensionFactory());
 
         WireMockServer wireMockServer = new WireMockServer(config);
@@ -91,9 +89,7 @@ public class ServiceMockRegistryBasicTest {
             AccountManagerMock mock = new AccountManagerMock();
             
             // Should not throw when initializing defaults
-            assertDoesNotThrow(() -> {
-                mock.initializeDefaults(wireMock);
-            });
+            assertDoesNotThrow(() -> mock.initializeDefaults(wireMock));
         } finally {
             wireMockServer.stop();
         }

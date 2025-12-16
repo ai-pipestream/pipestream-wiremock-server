@@ -38,7 +38,7 @@ public class ServiceMockRegistryTest {
         // Use withRootDirectory like reference examples - expects descriptors at wiremock/grpc/
         WireMockConfiguration config = wireMockConfig()
                 .dynamicPort()
-                .withRootDirectory("src/test/resources/wiremock")
+                .withRootDirectory("build/resources/test/wiremock")
                 .extensions(new GrpcExtensionFactory());
 
         wireMockServer = new WireMockServer(config);
@@ -149,9 +149,7 @@ public class ServiceMockRegistryTest {
         ServiceMockRegistry registry = new ServiceMockRegistry();
         
         // Should not throw even if environment variables are set
-        assertDoesNotThrow(() -> {
-            registry.initializeAll(wireMock);
-        });
+        assertDoesNotThrow(() -> registry.initializeAll(wireMock));
 
         // Default stub should still work
         GetAccountRequest request = GetAccountRequest.newBuilder()
@@ -166,7 +164,7 @@ public class ServiceMockRegistryTest {
     void testAccountManagerMock_ImplementsServiceMockInitializer() {
         // Verify AccountManagerMock implements the interface
         AccountManagerMock mock = new AccountManagerMock();
-        assertTrue(mock instanceof ServiceMockInitializer);
+        assertInstanceOf(ServiceMockInitializer.class, mock);
         assertEquals(AccountServiceGrpc.SERVICE_NAME, mock.getServiceName());
     }
 
@@ -251,9 +249,7 @@ public class ServiceMockRegistryTest {
                     .setAccountId("config-not-found-account")
                     .build();
 
-            StatusRuntimeException exception = assertThrows(StatusRuntimeException.class, () -> {
-                accountServiceStub.getAccount(request);
-            });
+            StatusRuntimeException exception = assertThrows(StatusRuntimeException.class, () -> accountServiceStub.getAccount(request));
 
             assertEquals(io.grpc.Status.Code.NOT_FOUND, exception.getStatus().getCode());
             assertTrue(exception.getMessage().contains("Account not found: config-not-found-account"));
