@@ -13,7 +13,7 @@ plugins {
     alias(libs.plugins.nmcp)
     alias(libs.plugins.shadow)
     id 'idea'
-    id 'ai.pipestream.proto-toolchain' version '0.7.2'
+    id 'ai.pipestream.proto-toolchain' version '0.7.3'
 }
 
 scmVersion {
