@@ -13,7 +13,7 @@ plugins {
     alias(libs.plugins.nmcp)
     alias(libs.plugins.shadow)
     id 'idea'
-    id 'ai.pipestream.proto-toolchain' version '0.7.3'
+    id 'ai.pipestream.proto-toolchain' version '0.7.4'
 }
 
 scmVersion {
@@ -57,6 +57,10 @@ pipestreamProtos {
     generateMutiny = false  // Not a Quarkus project
     generateDescriptors = true
     descriptorPath = layout.buildDirectory.file("descriptors/services.dsc")
+    // Automatically copy descriptors to WireMock-expected locations
+    copyDescriptorsToResources = true
+    testResourcesDir = layout.projectDirectory.dir("src/test/resources/wiremock/grpc")
+    testBuildDir = layout.buildDirectory.dir("resources/test/grpc")
 
     modules {
         register("common") {
@@ -216,24 +220,12 @@ distZip.dependsOn shadowJar
 startScripts.dependsOn shadowJar
 
 tasks.named('processTestResources').configure {
-    dependsOn 'generateProtos', 'buildDescriptors'
-    // Copy descriptor file to test resources wiremock/grpc so WireMock gRPC extension can find it in tests
+    dependsOn 'generateProtos', 'buildDescriptors', 'copyDescriptorsToResources'
+    // Descriptor copying is now handled by copyDescriptorsToResources task (proto-toolchain plugin)
     // WireMock expects it at src/test/resources/wiremock/grpc/services.dsc when using withRootDirectory
+    
+    // Copy ServiceLoader service file to test resources
     doLast {
-        def descriptorFile = layout.buildDirectory.file("descriptors/services.dsc").get().asFile
-        if (descriptorFile.exists()) {
-            // Copy to wiremock/grpc directory for withRootDirectory approach
-            copy {
-                from descriptorFile
-                into "${projectDir}/src/test/resources/wiremock/grpc"
-            }
-            // Also copy to grpc for classpath approach
-            copy {
-                from descriptorFile
-                into layout.buildDirectory.dir("resources/test/grpc").get().asFile
-            }
-        }
-        // Copy ServiceLoader service file to test resources
         def serviceFile = file("${projectDir}/src/main/resources/META-INF/services/ai.pipestream.wiremock.client.ServiceMockInitializer")
         if (serviceFile.exists()) {
             copy {
