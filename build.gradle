@@ -60,7 +60,7 @@ pipestreamProtos {
     descriptorPath = layout.buildDirectory.file("descriptors/services.dsc")
     // Automatically copy descriptors to test build resources (build directory only)
     copyDescriptorsToResources = true
-    testBuildDir = layout.buildDirectory.dir("resources/test/grpc")
+    testBuildDir = layout.buildDirectory.dir("resources/test/wiremock/grpc")
 
     modules {
         register("all") {
