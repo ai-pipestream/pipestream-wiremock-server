@@ -84,7 +84,7 @@ public class Main {
                     .bindAddress("0.0.0.0") // Bind to all interfaces for container deployment
                     // Essential: Allow extension to find descriptor files in the classpath or
                     // filesystem
-                    .usingFilesUnderClasspath(".") // Force classpath loading from root
+                    .usingFilesUnderClasspath("wiremock") // Load from wiremock/ sub-directory in classpath
                     .extensions(new GrpcExtensionFactory());
 
         WireMockServer server = new WireMockServer(config);

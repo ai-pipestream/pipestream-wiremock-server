@@ -127,7 +127,10 @@ eclipse {
 }
 
 tasks.named('processResources').configure {
-    dependsOn 'generateProtos'
+    dependsOn 'generateProtos', 'buildDescriptors'
+    from(layout.buildDirectory.dir("descriptors")) {
+        into "wiremock/grpc"
+    }
 }
 
 // Shadow JAR configuration for Docker container - replaces the jar task

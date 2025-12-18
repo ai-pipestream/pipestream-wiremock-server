@@ -6,7 +6,7 @@ FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
 # Copy the built jar (this assumes you ran ./gradlew build)
-COPY build/libs/pipestream-wiremock-server-0.0.1-SNAPSHOT.jar app.jar
+COPY build/libs/pipestream-wiremock-server-*-all.jar app.jar
 
 EXPOSE 8080
 
