@@ -14,10 +14,10 @@ protobuf-plugin = "0.9.5"
 nmcp = "1.3.0"
 
 [libraries]
-wiremock = { module = "org.wiremock:wiremock", version.ref = "wiremock" }
+wiremock-core = { module = "org.wiremock:wiremock", version.ref = "wiremock" }
 wiremock-grpc-extension-standalone = { module = "org.wiremock:wiremock-grpc-extension-standalone", version.ref = "wiremock-grpc-extension" }
 slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j" }
-protobuf-java = { module = "com.google.protobuf:protobuf-java", version.ref = "protobuf-java" }
+protobuf-java-core = { module = "com.google.protobuf:protobuf-java", version.ref = "protobuf-java" }
 protobuf-java-util = { module = "com.google.protobuf:protobuf-java-util", version.ref = "protobuf-java" }
 grpc-netty = { module = "io.grpc:grpc-netty", version.ref = "grpc" }
 grpc-protobuf = { module = "io.grpc:grpc-protobuf", version.ref = "grpc" }

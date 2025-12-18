@@ -1,8 +1,8 @@
 package ai.pipestream.wiremock.server;
 
 import ai.pipestream.repository.v1.filesystem.upload.NodeUploadServiceGrpc;
-import ai.pipestream.repository.v1.filesystem.upload.UploadPipeDocRequest;
-import ai.pipestream.repository.v1.filesystem.upload.UploadPipeDocResponse;
+import ai.pipestream.repository.v1.filesystem.upload.UploadFilesystemPipeDocRequest;
+import ai.pipestream.repository.v1.filesystem.upload.UploadFilesystemPipeDocResponse;
 import ai.pipestream.data.v1.PipeDoc;
 import ai.pipestream.data.v1.Blob;
 import ai.pipestream.data.v1.BlobBag;
@@ -71,7 +71,7 @@ class DirectWireMockPerformanceTest {
         byte[] largeData = new byte[size];
         // No need to fill with data, zeros are fine for size test
         
-        UploadPipeDocRequest request = UploadPipeDocRequest.newBuilder()
+        UploadFilesystemPipeDocRequest request = UploadFilesystemPipeDocRequest.newBuilder()
                 .setDocument(PipeDoc.newBuilder()
                         .setBlobBag(BlobBag.newBuilder()
                                 .setBlob(Blob.newBuilder()
@@ -82,7 +82,7 @@ class DirectWireMockPerformanceTest {
                 .build();
 
         long start = System.nanoTime();
-        UploadPipeDocResponse response = stub.uploadPipeDoc(request);
+        UploadFilesystemPipeDocResponse response = stub.uploadFilesystemPipeDoc(request);
         long duration = System.nanoTime() - start;
 
         assertTrue(response.getSuccess(), "Upload should succeed");
@@ -99,7 +99,7 @@ class DirectWireMockPerformanceTest {
         // Note: This requires sufficient heap space (set maxHeapSize = "4g" in build.gradle)
         byte[] largeData = new byte[size];
         
-        UploadPipeDocRequest request = UploadPipeDocRequest.newBuilder()
+        UploadFilesystemPipeDocRequest request = UploadFilesystemPipeDocRequest.newBuilder()
                 .setDocument(PipeDoc.newBuilder()
                         .setBlobBag(BlobBag.newBuilder()
                                 .setBlob(Blob.newBuilder()
@@ -111,7 +111,7 @@ class DirectWireMockPerformanceTest {
 
         System.out.println("Sending 1.2GB payload...");
         long start = System.nanoTime();
-        UploadPipeDocResponse response = stub.uploadPipeDoc(request);
+        UploadFilesystemPipeDocResponse response = stub.uploadFilesystemPipeDoc(request);
         long duration = System.nanoTime() - start;
 
         assertTrue(response.getSuccess(), "Upload should succeed");

@@ -9,18 +9,18 @@ import io.grpc.ServerBuilder;
 import io.grpc.ServerCall;
 import io.grpc.ServerCallHandler;
 import io.grpc.ServerInterceptor;
-import io.grpc.protobuf.services.ProtoReflectionService;
+import io.grpc.protobuf.services.ProtoReflectionServiceV1;
 import io.grpc.stub.StreamObserver;
 import ai.pipestream.platform.registration.v1.PlatformRegistrationServiceGrpc;
 import ai.pipestream.platform.registration.v1.RegistrationEvent;
-import ai.pipestream.platform.registration.v1.EventType;
+import ai.pipestream.platform.registration.v1.PlatformEventType;
 import ai.pipestream.platform.registration.v1.RegisterRequest;
 import ai.pipestream.platform.registration.v1.RegisterResponse;
 import ai.pipestream.platform.registration.v1.ServiceType;
 import ai.pipestream.platform.registration.v1.ListServicesRequest;
 import ai.pipestream.platform.registration.v1.ListServicesResponse;
-import ai.pipestream.platform.registration.v1.ListModulesRequest;
-import ai.pipestream.platform.registration.v1.ListModulesResponse;
+import ai.pipestream.platform.registration.v1.ListPlatformModulesRequest;
+import ai.pipestream.platform.registration.v1.ListPlatformModulesResponse;
 import ai.pipestream.platform.registration.v1.GetServiceResponse;
 import ai.pipestream.platform.registration.v1.GetModuleResponse;
 import com.google.protobuf.Timestamp;
@@ -28,8 +28,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import ai.pipestream.repository.v1.filesystem.upload.NodeUploadServiceGrpc;
-import ai.pipestream.repository.v1.filesystem.upload.UploadPipeDocRequest;
-import ai.pipestream.repository.v1.filesystem.upload.UploadPipeDocResponse;
+import ai.pipestream.repository.v1.filesystem.upload.UploadFilesystemPipeDocRequest;
+import ai.pipestream.repository.v1.filesystem.upload.UploadFilesystemPipeDocResponse;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -124,7 +124,7 @@ public class DirectWireMockGrpcServer {
                 .intercept(new TestMetadataInterceptor())
                 .addService(new PlatformRegistrationServiceImpl())
                 .addService(new NodeUploadServiceImpl())
-                .addService(ProtoReflectionService.newInstance())
+                .addService(ProtoReflectionServiceV1.newInstance())
                 .build();
     }
 
@@ -174,14 +174,14 @@ public class DirectWireMockGrpcServer {
      */
     private static class NodeUploadServiceImpl extends NodeUploadServiceGrpc.NodeUploadServiceImplBase {
         @Override
-        public void uploadPipeDoc(UploadPipeDocRequest request, StreamObserver<UploadPipeDocResponse> responseObserver) {
+        public void uploadFilesystemPipeDoc(UploadFilesystemPipeDocRequest request, StreamObserver<UploadFilesystemPipeDocResponse> responseObserver) {
             int size = request.getSerializedSize();
             String scenario = TEST_SCENARIO_KEY.get();
             String customDocId = TEST_DOC_ID_KEY.get();
             Integer delayMs = TEST_DELAY_MS_KEY.get();
 
             if (LOG.isDebugEnabled()) {
-                LOG.debug("DirectWireMock: uploadPipeDoc size={} bytes, scenario={}, docId={}, delay={}",
+                LOG.debug("DirectWireMock: uploadFilesystemPipeDoc size={} bytes, scenario={}, docId={}, delay={}",
                         size, scenario, customDocId, delayMs);
             }
 
@@ -202,7 +202,7 @@ public class DirectWireMockGrpcServer {
             if (scenario == null || scenario.isEmpty() || "success".equals(scenario)) {
                 // Default success scenario
                 String docId = customDocId != null ? customDocId : "mock-doc-" + System.currentTimeMillis();
-                UploadPipeDocResponse response = UploadPipeDocResponse.newBuilder()
+                UploadFilesystemPipeDocResponse response = UploadFilesystemPipeDocResponse.newBuilder()
                         .setSuccess(true)
                         .setDocumentId(docId)
                         .setMessage("Direct mock upload successful (size=" + size + " bytes)")
@@ -212,7 +212,7 @@ public class DirectWireMockGrpcServer {
 
             } else if ("failure".equals(scenario)) {
                 // Simulated failure
-                UploadPipeDocResponse response = UploadPipeDocResponse.newBuilder()
+                UploadFilesystemPipeDocResponse response = UploadFilesystemPipeDocResponse.newBuilder()
                         .setSuccess(false)
                         .setDocumentId("")
                         .setMessage("Simulated upload failure for testing")
@@ -236,7 +236,7 @@ public class DirectWireMockGrpcServer {
                 // Echo request details
                 String docId = customDocId != null ? customDocId : "echo-" + System.currentTimeMillis();
                 String docType = request.hasDocument() ? request.getDocument().getClass().getSimpleName() : "none";
-                UploadPipeDocResponse response = UploadPipeDocResponse.newBuilder()
+                UploadFilesystemPipeDocResponse response = UploadFilesystemPipeDocResponse.newBuilder()
                         .setSuccess(true)
                         .setDocumentId(docId)
                         .setMessage(String.format("Echo: size=%d bytes, docType=%s", size, docType))
@@ -248,7 +248,7 @@ public class DirectWireMockGrpcServer {
                 // Unknown scenario - treat as success but log warning
                 LOG.warn("Unknown test scenario: '{}', treating as success", scenario);
                 String docId = customDocId != null ? customDocId : "unknown-scenario-" + System.currentTimeMillis();
-                UploadPipeDocResponse response = UploadPipeDocResponse.newBuilder()
+                UploadFilesystemPipeDocResponse response = UploadFilesystemPipeDocResponse.newBuilder()
                         .setSuccess(true)
                         .setDocumentId(docId)
                         .setMessage("Unknown scenario '" + scenario + "', defaulted to success")
@@ -279,7 +279,7 @@ public class DirectWireMockGrpcServer {
                     .build();
         }
 
-        private RegisterResponse createResponse(EventType eventType, String message) {
+        private RegisterResponse createResponse(PlatformEventType eventType, String message) {
             return RegisterResponse.newBuilder()
                     .setEvent(RegistrationEvent.newBuilder()
                             .setEventType(eventType)
@@ -313,42 +313,42 @@ public class DirectWireMockGrpcServer {
                 // Simulate the 6-phase service registration process
                 LOG.info("DirectWireMockGrpcServer: Emitting STARTED event.");
                 responseObserver.onNext(createResponse(
-                        EventType.EVENT_TYPE_STARTED,
+                        PlatformEventType.PLATFORM_EVENT_TYPE_STARTED,
                         "Starting service registration"));
 
                 Thread.sleep(50);
 
                 LOG.info("DirectWireMockGrpcServer: Emitting VALIDATED event.");
                 responseObserver.onNext(createResponse(
-                        EventType.EVENT_TYPE_VALIDATED,
+                        PlatformEventType.PLATFORM_EVENT_TYPE_VALIDATED,
                         "Service registration request validated"));
 
                 Thread.sleep(50);
 
                 LOG.info("DirectWireMockGrpcServer: Emitting CONSUL_REGISTERED event.");
                 responseObserver.onNext(createResponse(
-                        EventType.EVENT_TYPE_CONSUL_REGISTERED,
+                        PlatformEventType.PLATFORM_EVENT_TYPE_CONSUL_REGISTERED,
                         "Service registered with Consul"));
 
                 Thread.sleep(50);
 
                 LOG.info("DirectWireMockGrpcServer: Emitting HEALTH_CHECK_CONFIGURED event.");
                 responseObserver.onNext(createResponse(
-                        EventType.EVENT_TYPE_HEALTH_CHECK_CONFIGURED,
+                        PlatformEventType.PLATFORM_EVENT_TYPE_HEALTH_CHECK_CONFIGURED,
                         "Health check configured"));
 
                 Thread.sleep(50);
 
                 LOG.info("DirectWireMockGrpcServer: Emitting CONSUL_HEALTHY event.");
                 responseObserver.onNext(createResponse(
-                        EventType.EVENT_TYPE_CONSUL_HEALTHY,
+                        PlatformEventType.PLATFORM_EVENT_TYPE_CONSUL_HEALTHY,
                         "Service reported healthy by Consul"));
 
                 Thread.sleep(50);
 
                 LOG.info("DirectWireMockGrpcServer: Emitting COMPLETED event.");
                 responseObserver.onNext(createResponse(
-                        EventType.EVENT_TYPE_COMPLETED,
+                        PlatformEventType.PLATFORM_EVENT_TYPE_COMPLETED,
                         "Service registration completed successfully"));
 
                 responseObserver.onCompleted();
@@ -363,11 +363,11 @@ public class DirectWireMockGrpcServer {
 
         private void registerModule(StreamObserver<RegisterResponse> responseObserver) {
             try {
-                EventType[] phases = {
-                        EventType.EVENT_TYPE_STARTED, EventType.EVENT_TYPE_VALIDATED, EventType.EVENT_TYPE_CONSUL_REGISTERED,
-                        EventType.EVENT_TYPE_HEALTH_CHECK_CONFIGURED, EventType.EVENT_TYPE_CONSUL_HEALTHY,
-                        EventType.EVENT_TYPE_METADATA_RETRIEVED, EventType.EVENT_TYPE_SCHEMA_VALIDATED,
-                        EventType.EVENT_TYPE_DATABASE_SAVED, EventType.EVENT_TYPE_APICURIO_REGISTERED, EventType.EVENT_TYPE_COMPLETED
+                PlatformEventType[] phases = {
+                        PlatformEventType.PLATFORM_EVENT_TYPE_STARTED, PlatformEventType.PLATFORM_EVENT_TYPE_VALIDATED, PlatformEventType.PLATFORM_EVENT_TYPE_CONSUL_REGISTERED,
+                        PlatformEventType.PLATFORM_EVENT_TYPE_HEALTH_CHECK_CONFIGURED, PlatformEventType.PLATFORM_EVENT_TYPE_CONSUL_HEALTHY,
+                        PlatformEventType.PLATFORM_EVENT_TYPE_METADATA_RETRIEVED, PlatformEventType.PLATFORM_EVENT_TYPE_SCHEMA_VALIDATED,
+                        PlatformEventType.PLATFORM_EVENT_TYPE_DATABASE_SAVED, PlatformEventType.PLATFORM_EVENT_TYPE_APICURIO_REGISTERED, PlatformEventType.PLATFORM_EVENT_TYPE_COMPLETED
                 };
 
                 String[] messages = {
@@ -429,9 +429,9 @@ public class DirectWireMockGrpcServer {
         }
 
         @Override
-        public void listModules(ListModulesRequest request, StreamObserver<ListModulesResponse> responseObserver) {
-            LOG.info("DirectWireMockGrpcServer: listModules called.");
-            ListModulesResponse response = ListModulesResponse.newBuilder()
+        public void listPlatformModules(ListPlatformModulesRequest request, StreamObserver<ListPlatformModulesResponse> responseObserver) {
+            LOG.info("DirectWireMockGrpcServer: listPlatformModules called.");
+            ListPlatformModulesResponse response = ListPlatformModulesResponse.newBuilder()
                     .addModules(GetModuleResponse.newBuilder()
                             .setModuleName("parser")
                             .setServiceId("parser-1")
@@ -460,7 +460,7 @@ public class DirectWireMockGrpcServer {
 
             responseObserver.onNext(response);
             responseObserver.onCompleted();
-            LOG.info("DirectWireMockGrpcServer: listModules completed.");
+            LOG.info("DirectWireMockGrpcServer: listPlatformModules completed.");
         }
     }
 }

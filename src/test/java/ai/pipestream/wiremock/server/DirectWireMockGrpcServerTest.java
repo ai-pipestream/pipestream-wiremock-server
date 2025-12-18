@@ -81,7 +81,7 @@ class DirectWireMockGrpcServerTest {
         CountDownLatch latch = new CountDownLatch(1);
         List<Throwable> errors = new ArrayList<>();
 
-        StreamObserver<RegisterResponse> responseObserver = new StreamObserver<RegisterResponse>() {
+        StreamObserver<RegisterResponse> responseObserver = new StreamObserver<>() {
             @Override
             public void onNext(RegisterResponse value) {
                 responses.add(value);
@@ -114,12 +114,12 @@ class DirectWireMockGrpcServerTest {
         assertEquals(6, responses.size(), "Should receive 6 registration events");
 
         // Verify event sequence
-        assertEquals(EventType.EVENT_TYPE_STARTED, responses.get(0).getEvent().getEventType());
-        assertEquals(EventType.EVENT_TYPE_VALIDATED, responses.get(1).getEvent().getEventType());
-        assertEquals(EventType.EVENT_TYPE_CONSUL_REGISTERED, responses.get(2).getEvent().getEventType());
-        assertEquals(EventType.EVENT_TYPE_HEALTH_CHECK_CONFIGURED, responses.get(3).getEvent().getEventType());
-        assertEquals(EventType.EVENT_TYPE_CONSUL_HEALTHY, responses.get(4).getEvent().getEventType());
-        assertEquals(EventType.EVENT_TYPE_COMPLETED, responses.get(5).getEvent().getEventType());
+        assertEquals(PlatformEventType.PLATFORM_EVENT_TYPE_STARTED, responses.get(0).getEvent().getEventType());
+        assertEquals(PlatformEventType.PLATFORM_EVENT_TYPE_VALIDATED, responses.get(1).getEvent().getEventType());
+        assertEquals(PlatformEventType.PLATFORM_EVENT_TYPE_CONSUL_REGISTERED, responses.get(2).getEvent().getEventType());
+        assertEquals(PlatformEventType.PLATFORM_EVENT_TYPE_HEALTH_CHECK_CONFIGURED, responses.get(3).getEvent().getEventType());
+        assertEquals(PlatformEventType.PLATFORM_EVENT_TYPE_CONSUL_HEALTHY, responses.get(4).getEvent().getEventType());
+        assertEquals(PlatformEventType.PLATFORM_EVENT_TYPE_COMPLETED, responses.get(5).getEvent().getEventType());
 
         // Verify all events have timestamps
         responses.forEach(response -> {
@@ -147,7 +147,7 @@ class DirectWireMockGrpcServerTest {
         CountDownLatch latch = new CountDownLatch(1);
         List<Throwable> errors = new ArrayList<>();
 
-        StreamObserver<RegisterResponse> responseObserver = new StreamObserver<RegisterResponse>() {
+        StreamObserver<RegisterResponse> responseObserver = new StreamObserver<>() {
             @Override
             public void onNext(RegisterResponse value) {
                 responses.add(value);
@@ -179,24 +179,24 @@ class DirectWireMockGrpcServerTest {
         assertEquals(10, responses.size(), "Should receive 10 registration events for module");
 
         // Verify event sequence starts correctly
-        assertEquals(EventType.EVENT_TYPE_STARTED, responses.get(0).getEvent().getEventType());
-        assertEquals(EventType.EVENT_TYPE_VALIDATED, responses.get(1).getEvent().getEventType());
-        assertEquals(EventType.EVENT_TYPE_CONSUL_REGISTERED, responses.get(2).getEvent().getEventType());
+        assertEquals(PlatformEventType.PLATFORM_EVENT_TYPE_STARTED, responses.get(0).getEvent().getEventType());
+        assertEquals(PlatformEventType.PLATFORM_EVENT_TYPE_VALIDATED, responses.get(1).getEvent().getEventType());
+        assertEquals(PlatformEventType.PLATFORM_EVENT_TYPE_CONSUL_REGISTERED, responses.get(2).getEvent().getEventType());
 
         // Verify module-specific events are present
         boolean hasMetadataRetrieved = responses.stream()
-                .anyMatch(r -> r.getEvent().getEventType() == EventType.EVENT_TYPE_METADATA_RETRIEVED);
+                .anyMatch(r -> r.getEvent().getEventType() == PlatformEventType.PLATFORM_EVENT_TYPE_METADATA_RETRIEVED);
         boolean hasSchemaValidated = responses.stream()
-                .anyMatch(r -> r.getEvent().getEventType() == EventType.EVENT_TYPE_SCHEMA_VALIDATED);
+                .anyMatch(r -> r.getEvent().getEventType() == PlatformEventType.PLATFORM_EVENT_TYPE_SCHEMA_VALIDATED);
         boolean hasApicurioRegistered = responses.stream()
-                .anyMatch(r -> r.getEvent().getEventType() == EventType.EVENT_TYPE_APICURIO_REGISTERED);
+                .anyMatch(r -> r.getEvent().getEventType() == PlatformEventType.PLATFORM_EVENT_TYPE_APICURIO_REGISTERED);
 
         assertTrue(hasMetadataRetrieved, "Should have METADATA_RETRIEVED event");
         assertTrue(hasSchemaValidated, "Should have SCHEMA_VALIDATED event");
         assertTrue(hasApicurioRegistered, "Should have APICURIO_REGISTERED event");
 
         // Verify ends with COMPLETED
-        assertEquals(EventType.EVENT_TYPE_COMPLETED, responses.get(responses.size() - 1).getEvent().getEventType());
+        assertEquals(PlatformEventType.PLATFORM_EVENT_TYPE_COMPLETED, responses.getLast().getEvent().getEventType());
 
         // Verify all events have timestamps
         responses.forEach(response -> {
@@ -231,8 +231,8 @@ class DirectWireMockGrpcServerTest {
 
     @Test
     void testListModules() {
-        ListModulesRequest request = ListModulesRequest.newBuilder().build();
-        ListModulesResponse response = blockingStub.listModules(request);
+        ListPlatformModulesRequest request = ListPlatformModulesRequest.newBuilder().build();
+        ListPlatformModulesResponse response = blockingStub.listPlatformModules(request);
 
         assertNotNull(response);
         assertEquals(2, response.getTotalCount());

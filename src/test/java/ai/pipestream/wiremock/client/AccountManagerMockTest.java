@@ -39,7 +39,7 @@ public class AccountManagerMockTest {
         // Use build directory for generated resources (not source directory)
         WireMockConfiguration config = wireMockConfig()
                 .dynamicPort()
-                .withRootDirectory("build/resources/test/wiremock")
+                .usingFilesUnderClasspath(".")
                 .extensions(new GrpcExtensionFactory());
 
         wireMockServer = new WireMockServer(config);

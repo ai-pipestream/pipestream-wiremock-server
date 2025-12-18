@@ -1,8 +1,8 @@
 package ai.pipestream.wiremock.server;
 
 import ai.pipestream.repository.v1.filesystem.upload.NodeUploadServiceGrpc;
-import ai.pipestream.repository.v1.filesystem.upload.UploadPipeDocRequest;
-import ai.pipestream.repository.v1.filesystem.upload.UploadPipeDocResponse;
+import ai.pipestream.repository.v1.filesystem.upload.UploadFilesystemPipeDocRequest;
+import ai.pipestream.repository.v1.filesystem.upload.UploadFilesystemPipeDocResponse;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -26,7 +26,7 @@ class RepoServiceMockTest {
     @BeforeEach
     void setUp() {
         System.out.println("Service Name: " + NodeUploadServiceGrpc.SERVICE_NAME);
-        System.out.println("Full Method Name: " + NodeUploadServiceGrpc.getUploadPipeDocMethod().getFullMethodName());
+        System.out.println("Full Method Name: " + NodeUploadServiceGrpc.getUploadFilesystemPipeDocMethod().getFullMethodName());
         
         // Start WireMock with gRPC extension
         // Force classpath loading from root (finds mappings/ and grpc/ on classpath)
@@ -36,19 +36,7 @@ class RepoServiceMockTest {
                 .usingFilesUnderClasspath(".") 
                 .extensions(new GrpcExtensionFactory()));
         wireMockServer.start();
-        
-        // Programmatic stub (Commented out to test file loading)
-        /*
-        wireMockServer.stubFor(post(urlPathEqualTo("/" + NodeUploadServiceGrpc.SERVICE_NAME + "/UploadPipeDoc"))
-                .willReturn(ok()
-                        .withHeader("Content-Type", "application/grpc")
-                        .withHeader("grpc-status-name", "OK")
-                        .withJsonBody(com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.objectNode()
-                                .put("success", true)
-                                .put("document_id", "mock-doc-123")
-                                .put("message", "Successfully uploaded to mock repository"))));
-        */
-        
+
         // Debug: List stub mappings
         wireMockServer.getStubMappings().forEach(stub -> 
             System.out.println("Loaded Stub: " + stub.getRequest().getUrlPath()));
@@ -72,8 +60,8 @@ class RepoServiceMockTest {
 
     @Test
     void testUploadPipeDoc() {
-        UploadPipeDocRequest request = UploadPipeDocRequest.newBuilder().build();
-        UploadPipeDocResponse response = stub.uploadPipeDoc(request);
+        UploadFilesystemPipeDocRequest request = UploadFilesystemPipeDocRequest.newBuilder().build();
+        UploadFilesystemPipeDocResponse response = stub.uploadFilesystemPipeDoc(request);
 
         assertTrue(response.getSuccess());
         assertEquals("mock-doc-123", response.getDocumentId());

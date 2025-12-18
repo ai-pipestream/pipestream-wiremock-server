@@ -38,7 +38,7 @@ public class ServiceMockRegistryTest {
         // Use withRootDirectory like reference examples - expects descriptors at wiremock/grpc/
         WireMockConfiguration config = wireMockConfig()
                 .dynamicPort()
-                .withRootDirectory("build/resources/test/wiremock")
+                .usingFilesUnderClasspath(".")
                 .extensions(new GrpcExtensionFactory());
 
         wireMockServer = new WireMockServer(config);

@@ -1,7 +1,7 @@
 {
   "request": {
     "method": "POST",
-    "urlPath": "/ai.pipestream.repository.filesystem.upload.v1.NodeUploadService/UploadPipeDoc"
+    "urlPath": "/ai.pipestream.repository.filesystem.upload.v1.NodeUploadService/UploadFilesystemPipeDoc"
   },
   "response": {
     "status": 200,

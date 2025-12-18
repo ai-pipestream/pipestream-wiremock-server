@@ -1,6 +1,4 @@
-import org.apache.tools.ant.filters.ReplaceTokens
 import org.gradle.plugins.ide.eclipse.model.SourceFolder
-import org.gradle.plugins.signing.Sign
 
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
@@ -62,91 +60,26 @@ pipestreamProtos {
     descriptorPath = layout.buildDirectory.file("descriptors/services.dsc")
     // Automatically copy descriptors to test build resources (build directory only)
     copyDescriptorsToResources = true
-    testBuildDir = layout.buildDirectory.dir("resources/test/wiremock/grpc")
+    testBuildDir = layout.buildDirectory.dir("resources/test/grpc")
 
     modules {
-        register("common") {
+        register("all") {
             gitRepo = "https://github.com/ai-pipestream/pipestream-protos.git"
             gitRef = "main"
-            gitSubdir = "common"
-        }
-        register("pipeline-module") {
-            gitRepo = "https://github.com/ai-pipestream/pipestream-protos.git"
-            gitRef = "main"
-            gitSubdir = "pipeline-module"
-        }
-        register("config") {
-            gitRepo = "https://github.com/ai-pipestream/pipestream-protos.git"
-            gitRef = "main"
-            gitSubdir = "config"
-        }
-        register("admin") {
-            gitRepo = "https://github.com/ai-pipestream/pipestream-protos.git"
-            gitRef = "main"
-            gitSubdir = "admin"
-        }
-        register("intake") {
-            gitRepo = "https://github.com/ai-pipestream/pipestream-protos.git"
-            gitRef = "main"
-            gitSubdir = "intake"
-        }
-        register("parser") {
-            gitRepo = "https://github.com/ai-pipestream/pipestream-protos.git"
-            gitRef = "main"
-            gitSubdir = "parser"
-        }
-        register("opensearch") {
-            gitRepo = "https://github.com/ai-pipestream/pipestream-protos.git"
-            gitRef = "main"
-            gitSubdir = "opensearch"
-        }
-        register("ui-ux") {
-            gitRepo = "https://github.com/ai-pipestream/pipestream-protos.git"
-            gitRef = "main"
-            gitSubdir = "ui-ux"
-        }
-        register("registration") {
-            gitRepo = "https://github.com/ai-pipestream/pipestream-protos.git"
-            gitRef = "main"
-            gitSubdir = "registration"
-        }
-        register("engine") {
-            gitRepo = "https://github.com/ai-pipestream/pipestream-protos.git"
-            gitRef = "main"
-            gitSubdir = "engine"
-        }
-        register("linear-processor") {
-            gitRepo = "https://github.com/ai-pipestream/pipestream-protos.git"
-            gitRef = "main"
-            gitSubdir = "linear-processor"
-        }
-        register("testing-harness") {
-            gitRepo = "https://github.com/ai-pipestream/pipestream-protos.git"
-            gitRef = "main"
-            gitSubdir = "testing-harness"
-        }
-        register("design") {
-            gitRepo = "https://github.com/ai-pipestream/pipestream-protos.git"
-            gitRef = "main"
-            gitSubdir = "design"
-        }
-        register("repo") {
-            gitRepo = "https://github.com/ai-pipestream/pipestream-protos.git"
-            gitRef = "main"
-            gitSubdir = "repo"
+            gitSubdir = "."
         }
     }
 }
 
 dependencies {
-    implementation libs.wiremock
+    implementation libs.wiremock.core
     implementation("org.wiremock:wiremock-grpc-extension:1.0.0-beta.3") {
         exclude group: 'com.google.protobuf', module: 'protobuf-java'
     }
 
     implementation libs.slf4j.simple
 
-    implementation libs.protobuf.java
+    implementation libs.protobuf.java.core
     implementation libs.protobuf.java.util
 
     // gRPC runtime dependencies for the custom server
