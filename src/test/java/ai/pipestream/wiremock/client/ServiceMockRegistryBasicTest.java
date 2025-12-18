@@ -3,6 +3,7 @@ package ai.pipestream.wiremock.client;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import org.jboss.logging.Logger;
 import org.junit.jupiter.api.Test;
 import org.wiremock.grpc.GrpcExtensionFactory;
 
@@ -17,6 +18,8 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 public class ServiceMockRegistryBasicTest {
 
+    private static final Logger LOG = Logger.getLogger(ServiceMockRegistryBasicTest.class);
+
     @Test
     void testServiceMockRegistry_DiscoverInitializers() {
         // Create registry - should discover AccountManagerMock via ServiceLoader
@@ -26,7 +29,7 @@ public class ServiceMockRegistryBasicTest {
         // The registry should handle the case where no initializers are found gracefully
         // In production/runtime, the service file will be on the classpath and discovery will work
         int count = registry.getInitializerCount();
-        
+
         // If initializers are found, verify AccountManagerMock is among them
         if (count > 0) {
             assertTrue(registry.getServiceNames().contains(
@@ -35,7 +38,7 @@ public class ServiceMockRegistryBasicTest {
         } else {
             // If no initializers found, that's okay - ServiceLoader may not work in test environment
             // The important thing is that the registry doesn't crash
-            System.out.println("Note: No ServiceMockInitializer implementations found via ServiceLoader in test environment");
+            LOG.info("Note: No ServiceMockInitializer implementations found via ServiceLoader in test environment");
         }
     }
 

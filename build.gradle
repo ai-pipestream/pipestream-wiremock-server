@@ -78,6 +78,7 @@ dependencies {
     }
 
     implementation libs.slf4j.simple
+    implementation libs.jboss.logging
 
     implementation libs.protobuf.java.core
     implementation libs.protobuf.java.util
@@ -224,7 +225,9 @@ compileJava {
 
 test {
     useJUnitPlatform()
-    maxHeapSize = "8g"
+    // 5GB heap is sufficient for the 1.2GB payload test and fits within
+    // GitHub Actions standard runners (7GB total RAM)
+    maxHeapSize = "5g"
     // Run test classes sequentially to avoid XML test result file writing conflicts
     // This is a known issue when multiple test forks write to the same XML files simultaneously
     // With only 6 test classes, the performance impact is minimal

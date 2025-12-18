@@ -24,8 +24,7 @@ import ai.pipestream.platform.registration.v1.ListPlatformModulesResponse;
 import ai.pipestream.platform.registration.v1.GetServiceResponse;
 import ai.pipestream.platform.registration.v1.GetModuleResponse;
 import com.google.protobuf.Timestamp;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.jboss.logging.Logger;
 
 import ai.pipestream.repository.v1.filesystem.upload.NodeUploadServiceGrpc;
 import ai.pipestream.repository.v1.filesystem.upload.UploadFilesystemPipeDocRequest;
@@ -51,7 +50,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class DirectWireMockGrpcServer {
 
-    private static final Logger LOG = LoggerFactory.getLogger(DirectWireMockGrpcServer.class);
+    private static final Logger LOG = Logger.getLogger(DirectWireMockGrpcServer.class);
 
     private final Server grpcServer;
 
@@ -86,7 +85,7 @@ public class DirectWireMockGrpcServer {
             String scenario = headers.get(SCENARIO_HEADER);
             if (scenario != null) {
                 ctx = ctx.withValue(TEST_SCENARIO_KEY, scenario);
-                LOG.debug("Test scenario header: {}", scenario);
+                LOG.debugf("Test scenario header: %s", scenario);
             }
 
             String docId = headers.get(DOC_ID_HEADER);
@@ -118,7 +117,7 @@ public class DirectWireMockGrpcServer {
         if (wireMockServer == null) {
             throw new IllegalArgumentException("wireMockServer must not be null");
         }
-        System.out.println("Initializing DirectWireMockGrpcServer on port " + grpcPort + " with maxInboundMessageSize: " + maxInboundMessageSize);
+        LOG.infof("Initializing DirectWireMockGrpcServer on port %d with maxInboundMessageSize: %d", grpcPort, maxInboundMessageSize);
         this.grpcServer = ServerBuilder.forPort(grpcPort)
                 .maxInboundMessageSize(maxInboundMessageSize)
                 .intercept(new TestMetadataInterceptor())
@@ -135,7 +134,7 @@ public class DirectWireMockGrpcServer {
 
     public void start() throws IOException {
         grpcServer.start();
-        LOG.info("DirectWireMockGrpcServer: gRPC server started on port {}", grpcServer.getPort());
+        LOG.infof("DirectWireMockGrpcServer: gRPC server started on port %d", grpcServer.getPort());
     }
 
     public void stop() throws InterruptedException {
@@ -181,7 +180,7 @@ public class DirectWireMockGrpcServer {
             Integer delayMs = TEST_DELAY_MS_KEY.get();
 
             if (LOG.isDebugEnabled()) {
-                LOG.debug("DirectWireMock: uploadFilesystemPipeDoc size={} bytes, scenario={}, docId={}, delay={}",
+                LOG.debugf("DirectWireMock: uploadFilesystemPipeDoc size=%d bytes, scenario=%s, docId=%s, delay=%s",
                         size, scenario, customDocId, delayMs);
             }
 
@@ -246,7 +245,7 @@ public class DirectWireMockGrpcServer {
 
             } else {
                 // Unknown scenario - treat as success but log warning
-                LOG.warn("Unknown test scenario: '{}', treating as success", scenario);
+                LOG.warnf("Unknown test scenario: '%s', treating as success", scenario);
                 String docId = customDocId != null ? customDocId : "unknown-scenario-" + System.currentTimeMillis();
                 UploadFilesystemPipeDocResponse response = UploadFilesystemPipeDocResponse.newBuilder()
                         .setSuccess(true)

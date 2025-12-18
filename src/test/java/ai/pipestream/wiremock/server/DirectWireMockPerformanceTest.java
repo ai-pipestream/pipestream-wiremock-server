@@ -10,6 +10,7 @@ import com.github.tomakehurst.wiremock.WireMockServer;
 import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
 import io.grpc.netty.NettyChannelBuilder;
+import org.jboss.logging.Logger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,6 +25,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * (simulating performance benchmarks) without RESOURCE_EXHAUSTED errors.
  */
 class DirectWireMockPerformanceTest {
+
+    private static final Logger LOG = Logger.getLogger(DirectWireMockPerformanceTest.class);
 
     private WireMockServer wireMockServer;
     private DirectWireMockGrpcServer directGrpcServer;
@@ -86,7 +89,7 @@ class DirectWireMockPerformanceTest {
         long duration = System.nanoTime() - start;
 
         assertTrue(response.getSuccess(), "Upload should succeed");
-        System.out.printf("Uploaded 100MB in %.3f ms%n", duration / 1_000_000.0);
+        LOG.infof("Uploaded 100MB in %.3f ms", duration / 1_000_000.0);
     }
 
     @Test
@@ -94,11 +97,11 @@ class DirectWireMockPerformanceTest {
         // Create 1.2GB payload (approx 1288 MB)
         // 1.2 * 1024 * 1024 * 1024 = 1288490188
         int size = 1288490188;
-        
-        System.out.println("Allocating 1.2GB payload...");
-        // Note: This requires sufficient heap space (set maxHeapSize = "4g" in build.gradle)
+
+        LOG.info("Allocating 1.2GB payload...");
+        // Note: This requires ~5GB heap (1.2GB array + 1.2GB ByteString copy + protobuf overhead)
         byte[] largeData = new byte[size];
-        
+
         UploadFilesystemPipeDocRequest request = UploadFilesystemPipeDocRequest.newBuilder()
                 .setDocument(PipeDoc.newBuilder()
                         .setBlobBag(BlobBag.newBuilder()
@@ -109,12 +112,12 @@ class DirectWireMockPerformanceTest {
                         .build())
                 .build();
 
-        System.out.println("Sending 1.2GB payload...");
+        LOG.info("Sending 1.2GB payload...");
         long start = System.nanoTime();
         UploadFilesystemPipeDocResponse response = stub.uploadFilesystemPipeDoc(request);
         long duration = System.nanoTime() - start;
 
         assertTrue(response.getSuccess(), "Upload should succeed");
-        System.out.printf("Uploaded 1.2GB in %.3f ms%n", duration / 1_000_000.0);
+        LOG.infof("Uploaded 1.2GB in %.3f ms", duration / 1_000_000.0);
     }
 }

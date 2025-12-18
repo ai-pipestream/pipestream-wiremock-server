@@ -6,6 +6,7 @@ import ai.pipestream.repository.v1.filesystem.upload.UploadFilesystemPipeDocResp
 import com.github.tomakehurst.wiremock.WireMockServer;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import org.jboss.logging.Logger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,27 +20,29 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RepoServiceMockTest {
 
+    private static final Logger LOG = Logger.getLogger(RepoServiceMockTest.class);
+
     private WireMockServer wireMockServer;
     private ManagedChannel channel;
     private NodeUploadServiceGrpc.NodeUploadServiceBlockingStub stub;
 
     @BeforeEach
     void setUp() {
-        System.out.println("Service Name: " + NodeUploadServiceGrpc.SERVICE_NAME);
-        System.out.println("Full Method Name: " + NodeUploadServiceGrpc.getUploadFilesystemPipeDocMethod().getFullMethodName());
-        
+        LOG.infof("Service Name: %s", NodeUploadServiceGrpc.SERVICE_NAME);
+        LOG.infof("Full Method Name: %s", NodeUploadServiceGrpc.getUploadFilesystemPipeDocMethod().getFullMethodName());
+
         // Start WireMock with gRPC extension
         // Force classpath loading from root (finds mappings/ and grpc/ on classpath)
         wireMockServer = new WireMockServer(wireMockConfig()
                 .dynamicPort()
-                .notifier(new com.github.tomakehurst.wiremock.common.ConsoleNotifier(true)) 
-                .usingFilesUnderClasspath(".") 
+                .notifier(new com.github.tomakehurst.wiremock.common.ConsoleNotifier(true))
+                .usingFilesUnderClasspath(".")
                 .extensions(new GrpcExtensionFactory()));
         wireMockServer.start();
 
         // Debug: List stub mappings
-        wireMockServer.getStubMappings().forEach(stub -> 
-            System.out.println("Loaded Stub: " + stub.getRequest().getUrlPath()));
+        wireMockServer.getStubMappings().forEach(s ->
+            LOG.infof("Loaded Stub: %s", s.getRequest().getUrlPath()));
 
         // Connect gRPC client
         channel = ManagedChannelBuilder.forAddress("localhost", wireMockServer.port())
