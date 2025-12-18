@@ -108,6 +108,14 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew build -Pversion=${{ env.RELEASE_VERSION }} --no-daemon --configuration-cache
 
+      - name: Upload Test Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-report-${{ env.RELEASE_VERSION }}
+          path: build/reports/tests/test/
+          retention-days: 5
+
       - name: Publish Release to Maven Central
         env:
           MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
