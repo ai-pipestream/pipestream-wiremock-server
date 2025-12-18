@@ -160,16 +160,22 @@ startScripts.dependsOn shadowJar
 
 // Capture paths during configuration phase for configuration cache compatibility
 def projectDirPath = project.layout.projectDirectory.asFile.absolutePath
-def testResourcesMappingsDir = project.layout.buildDirectory.dir("resources/test/wiremock/mappings").get().asFile.absolutePath
 
 tasks.named('processTestResources').configure {
     dependsOn 'generateProtos', 'buildDescriptors', 'copyDescriptorsToResources'
-    // Descriptor copying is now handled by copyDescriptorsToResources task (proto-toolchain plugin)
-    // WireMock expects it at build/resources/test/wiremock/grpc/services.dsc when using withRootDirectory
-    
-    // Copy ServiceLoader service file and mappings to test resources
+
+    // Copy protobuf descriptors to test resources for WireMock
+    from(layout.buildDirectory.dir("descriptors")) {
+        into "wiremock/grpc"
+    }
+
+    // Copy mappings from main resources to test resources
+    from("src/main/resources/wiremock/mappings") {
+        into "wiremock/mappings"
+    }
+
+    // Copy ServiceLoader service file
     doLast {
-        // Use Java Files API for configuration cache compatibility (avoid Gradle script methods)
         def serviceFile = new File("${projectDirPath}/src/main/resources/META-INF/services/ai.pipestream.wiremock.client.ServiceMockInitializer")
         if (serviceFile.exists()) {
             def targetDir = new File("${projectDirPath}/src/test/resources/META-INF/services")
@@ -179,20 +185,6 @@ tasks.named('processTestResources').configure {
                 new File(targetDir, serviceFile.name).toPath(),
                     StandardCopyOption.REPLACE_EXISTING
             )
-        }
-
-        // Copy mappings to test resources so they are available on classpath at /mappings
-        def mappingsDir = new File("${projectDirPath}/src/main/resources/mappings")
-        if (mappingsDir.exists() && mappingsDir.isDirectory()) {
-            def targetMappingsDir = new File(testResourcesMappingsDir)
-            targetMappingsDir.mkdirs()
-            mappingsDir.eachFile { file ->
-                Files.copy(
-                    file.toPath(),
-                    new File(targetMappingsDir, file.name).toPath(),
-                        StandardCopyOption.REPLACE_EXISTING
-                )
-            }
         }
     }
 }
