@@ -157,7 +157,7 @@ startScripts.dependsOn shadowJar
 
 // Capture paths during configuration phase for configuration cache compatibility
 def projectDirPath = project.layout.projectDirectory.asFile.absolutePath
-def testResourcesMappingsDir = project.layout.buildDirectory.dir("resources/test/mappings").get().asFile.absolutePath
+def testResourcesMappingsDir = project.layout.buildDirectory.dir("resources/test/wiremock/mappings").get().asFile.absolutePath
 
 tasks.named('processTestResources').configure {
     dependsOn 'generateProtos', 'buildDescriptors', 'copyDescriptorsToResources'

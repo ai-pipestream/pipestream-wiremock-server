@@ -32,11 +32,11 @@ class RepoServiceMockTest {
         LOG.infof("Full Method Name: %s", NodeUploadServiceGrpc.getUploadFilesystemPipeDocMethod().getFullMethodName());
 
         // Start WireMock with gRPC extension
-        // Force classpath loading from root (finds mappings/ and grpc/ on classpath)
+        // Force file loading from build dir (finds mappings/ and grpc/ in build/resources/test/wiremock)
         wireMockServer = new WireMockServer(wireMockConfig()
                 .dynamicPort()
                 .notifier(new com.github.tomakehurst.wiremock.common.ConsoleNotifier(true))
-                .usingFilesUnderClasspath(".")
+                .withRootDirectory("build/resources/test/wiremock")
                 .extensions(new GrpcExtensionFactory()));
         wireMockServer.start();
 
