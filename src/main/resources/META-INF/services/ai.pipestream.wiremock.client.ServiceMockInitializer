@@ -1,4 +1,5 @@
 ai.pipestream.wiremock.client.AccountManagerMock
+ai.pipestream.wiremock.client.DataSourceAdminMock
 
 
 
