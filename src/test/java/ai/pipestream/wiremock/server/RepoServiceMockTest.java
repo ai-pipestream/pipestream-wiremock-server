@@ -1,8 +1,8 @@
 package ai.pipestream.wiremock.server;
 
-import ai.pipestream.repository.v1.filesystem.upload.NodeUploadServiceGrpc;
-import ai.pipestream.repository.v1.filesystem.upload.UploadFilesystemPipeDocRequest;
-import ai.pipestream.repository.v1.filesystem.upload.UploadFilesystemPipeDocResponse;
+import ai.pipestream.repository.filesystem.upload.v1.NodeUploadServiceGrpc;
+import ai.pipestream.repository.filesystem.upload.v1.UploadFilesystemPipeDocRequest;
+import ai.pipestream.repository.filesystem.upload.v1.UploadFilesystemPipeDocResponse;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;

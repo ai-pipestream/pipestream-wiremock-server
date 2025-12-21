@@ -33,7 +33,7 @@ import com.github.tomakehurst.wiremock.client.WireMock;
 public interface ServiceMockInitializer {
     
     /**
-     * Returns the fully-qualified gRPC service name (e.g., "ai.pipestream.repository.v1.account.AccountService").
+     * Returns the fully-qualified gRPC service name (e.g., "ai.pipestream.repository.account.v1.AccountService").
      * <p>
      * This is used for logging and identification purposes.
      *
@@ -57,5 +57,7 @@ public interface ServiceMockInitializer {
      */
     void initializeDefaults(WireMock wireMock);
 }
+
+
 
 

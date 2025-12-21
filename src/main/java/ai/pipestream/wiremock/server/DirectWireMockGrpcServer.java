@@ -26,9 +26,9 @@ import ai.pipestream.platform.registration.v1.GetModuleResponse;
 import com.google.protobuf.Timestamp;
 import org.jboss.logging.Logger;
 
-import ai.pipestream.repository.v1.filesystem.upload.NodeUploadServiceGrpc;
-import ai.pipestream.repository.v1.filesystem.upload.UploadFilesystemPipeDocRequest;
-import ai.pipestream.repository.v1.filesystem.upload.UploadFilesystemPipeDocResponse;
+import ai.pipestream.repository.filesystem.upload.v1.NodeUploadServiceGrpc;
+import ai.pipestream.repository.filesystem.upload.v1.UploadFilesystemPipeDocRequest;
+import ai.pipestream.repository.filesystem.upload.v1.UploadFilesystemPipeDocResponse;
 
 import java.io.IOException;
 import java.time.Instant;

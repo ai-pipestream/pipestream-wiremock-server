@@ -1,6 +1,6 @@
 package ai.pipestream.wiremock.client;
 
-import ai.pipestream.repository.v1.account.*;
+import ai.pipestream.repository.account.v1.*;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

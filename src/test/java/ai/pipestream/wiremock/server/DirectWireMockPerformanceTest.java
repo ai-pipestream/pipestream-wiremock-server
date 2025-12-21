@@ -1,8 +1,8 @@
 package ai.pipestream.wiremock.server;
 
-import ai.pipestream.repository.v1.filesystem.upload.NodeUploadServiceGrpc;
-import ai.pipestream.repository.v1.filesystem.upload.UploadFilesystemPipeDocRequest;
-import ai.pipestream.repository.v1.filesystem.upload.UploadFilesystemPipeDocResponse;
+import ai.pipestream.repository.filesystem.upload.v1.NodeUploadServiceGrpc;
+import ai.pipestream.repository.filesystem.upload.v1.UploadFilesystemPipeDocRequest;
+import ai.pipestream.repository.filesystem.upload.v1.UploadFilesystemPipeDocResponse;
 import ai.pipestream.data.v1.PipeDoc;
 import ai.pipestream.data.v1.Blob;
 import ai.pipestream.data.v1.BlobBag;
