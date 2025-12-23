@@ -1,6 +1,6 @@
 [versions]
-wiremock = "4.0.0-beta.22"
-wiremock-grpc-extension = "1.0.0-beta.3"
+wiremock = "4.0.0-beta.24"
+wiremock-grpc-extension = "1.0.0-beta.4"
 slf4j = "2.0.17"
 jboss-logging = "3.6.1.Final"
 protobuf-java = "4.33.2"
