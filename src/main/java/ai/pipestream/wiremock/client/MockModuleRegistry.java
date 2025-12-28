@@ -249,6 +249,24 @@ public class MockModuleRegistry {
     // ============================================
 
     /**
+     * Set the active module whose capabilities will be returned by GetServiceRegistration.
+     * <p>
+     * This is a convenience method that delegates to {@link PipeStepProcessorMock#setActiveModule(String)}.
+     * Call this before each test that needs specific module capabilities.
+     *
+     * @param moduleName Name of the module to activate
+     * @throws IllegalArgumentException if the module has not been registered
+     */
+    public void setActiveModule(String moduleName) {
+        if (!modules.containsKey(moduleName)) {
+            throw new IllegalArgumentException("Module not registered in MockModuleRegistry: " + moduleName +
+                    ". Available modules: " + modules.keySet());
+        }
+        processorMock.setActiveModule(moduleName);
+        LOG.info("Set active module to: {}", moduleName);
+    }
+
+    /**
      * Get all registered modules.
      *
      * @return Map of module name to registered module

@@ -1,9 +1,11 @@
 package ai.pipestream.wiremock.client;
 
 import ai.pipestream.data.v1.DocumentReference;
+import ai.pipestream.data.v1.FileStorageReference;
 import ai.pipestream.data.v1.PipeDoc;
 import ai.pipestream.repository.pipedoc.v1.*;
 import com.github.tomakehurst.wiremock.client.WireMock;
+import com.google.protobuf.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.wiremock.grpc.dsl.WireMockGrpc;
@@ -19,10 +21,11 @@ import static org.wiremock.grpc.dsl.WireMockGrpc.message;
 /**
  * Server-side helper for configuring PipeDocService mocks in WireMock.
  * <p>
- * This mock supports testing of document hydration scenarios for the Kafka Sidecar including:
+ * This mock supports testing of document hydration scenarios for the Kafka Sidecar and Engine including:
  * <ul>
  *   <li><b>GetPipeDocByReference</b>: Return PipeDoc for a given DocumentReference</li>
- *   <li><b>Document not found</b>: Return NOT_FOUND status for missing documents</li>
+ *   <li><b>GetBlob</b>: Return blob binary data for a given FileStorageReference (Level 2 hydration)</li>
+ *   <li><b>Document/blob not found</b>: Return NOT_FOUND status for missing documents/blobs</li>
  *   <li><b>Transient failures</b>: Return UNAVAILABLE for retry testing</li>
  * </ul>
  * <p>
@@ -33,11 +36,20 @@ import static org.wiremock.grpc.dsl.WireMockGrpc.message;
  * // Register a document that can be retrieved
  * mock.registerPipeDoc("doc-123", "account-456", samplePipeDoc);
  *
+ * // Register a blob for Level 2 hydration
+ * FileStorageReference blobRef = FileStorageReference.newBuilder()
+ *     .setDriveName("default")
+ *     .setObjectKey("doc-123/intake/blob-uuid.bin")
+ *     .build();
+ * mock.registerBlob(blobRef, ByteString.copyFromUtf8("Blob content"));
+ *
  * // Mock a not found scenario
  * mock.mockGetByReferenceNotFound("missing-doc", "account-456");
+ * mock.mockGetBlobNotFound(blobRef);
  *
  * // Mock an unavailable scenario for retry testing
  * mock.mockGetByReferenceUnavailable();
+ * mock.mockGetBlobUnavailable();
  * }</pre>
  * <p>
  * This class implements {@link ServiceMockInitializer} and will be automatically
@@ -53,6 +65,9 @@ public class PipeDocServiceMock implements ServiceMockInitializer {
 
     // Track registered documents for dynamic responses
     private final Map<String, RegisteredDoc> registeredDocs = new HashMap<>();
+    
+    // Track registered blobs for dynamic responses (keyed by storage reference)
+    private final Map<String, RegisteredBlob> registeredBlobs = new HashMap<>();
 
     /**
      * Create a helper for the given WireMock client.
@@ -91,10 +106,24 @@ public class PipeDocServiceMock implements ServiceMockInitializer {
                 .build();
         registerPipeDoc("test-doc-2", "test-account", testDoc2, "node-2", "test-drive");
 
-        // Set up default stub that returns NOT_FOUND for unknown documents
+        // Set up default stubs for unknown documents and blobs
         setupDefaultStubs();
+        
+        // Register some default test blobs
+        FileStorageReference testBlobRef1 = FileStorageReference.newBuilder()
+                .setDriveName("test-drive")
+                .setObjectKey("test-blob-1.bin")
+                .build();
+        registerBlob(testBlobRef1, ByteString.copyFromUtf8("Test blob content 1"));
+        
+        FileStorageReference testBlobRef2 = FileStorageReference.newBuilder()
+                .setDriveName("test-drive")
+                .setObjectKey("test-blob-2.bin")
+                .build();
+        registerBlob(testBlobRef2, ByteString.copyFromUtf8("Test blob content 2"));
 
-        LOG.info("Added {} document stubs for PipeDocService", registeredDocs.size());
+        LOG.info("Added {} document stubs and {} blob stubs for PipeDocService", 
+                registeredDocs.size(), registeredBlobs.size());
     }
 
     // ============================================
@@ -133,10 +162,10 @@ public class PipeDocServiceMock implements ServiceMockInitializer {
     // ============================================
 
     /**
-     * Set up default stubs for unknown documents.
+     * Set up default stubs for unknown documents and blobs.
      */
     private void setupDefaultStubs() {
-        // Default response for any unmatched request - returns empty response
+        // Default response for any unmatched GetPipeDocByReference request - returns empty response
         // Individual document registrations will have higher priority
         GetPipeDocByReferenceResponse defaultResponse = GetPipeDocByReferenceResponse.newBuilder()
                 .build();
@@ -144,6 +173,13 @@ public class PipeDocServiceMock implements ServiceMockInitializer {
         pipeDocService.stubFor(
                 method("GetPipeDocByReference")
                         .willReturn(message(defaultResponse))
+        );
+        
+        // Default response for any unmatched GetBlob request - returns NOT_FOUND
+        // Individual blob registrations will have higher priority
+        pipeDocService.stubFor(
+                method("GetBlob")
+                        .willReturn(WireMockGrpc.Status.NOT_FOUND, "Blob not found")
         );
     }
 
@@ -274,6 +310,272 @@ public class PipeDocServiceMock implements ServiceMockInitializer {
     }
 
     // ============================================
+    // GetBlob Mocks
+    // ============================================
+
+    /**
+     * Register a blob that can be retrieved by storage reference.
+     *
+     * @param storageRef The file storage reference (drive name, object key, optional version ID)
+     * @param blobData   The blob binary data
+     */
+    public void registerBlob(FileStorageReference storageRef, ByteString blobData) {
+        RegisteredBlob regBlob = new RegisteredBlob(storageRef, blobData);
+        String key = makeBlobKey(storageRef);
+        registeredBlobs.put(key, regBlob);
+        mockGetBlob(regBlob);
+        LOG.debug("Registered blob: drive={}, objectKey={}", 
+                storageRef.getDriveName(), storageRef.getObjectKey());
+    }
+
+    /**
+     * Mock GetBlob for a registered blob.
+     *
+     * @param regBlob Registered blob info
+     */
+    private void mockGetBlob(RegisteredBlob regBlob) {
+        GetBlobRequest request = GetBlobRequest.newBuilder()
+                .setStorageRef(regBlob.storageRef)
+                .build();
+
+        GetBlobResponse response = GetBlobResponse.newBuilder()
+                .setData(regBlob.blobData)
+                .build();
+
+        pipeDocService.stubFor(
+                method("GetBlob")
+                        .withRequestMessage(WireMockGrpc.equalToMessage(request))
+                        .willReturn(message(response))
+        );
+    }
+
+    /**
+     * Mock GetBlob to return a specific blob for any request.
+     * This is useful when you want to control exactly what blob is returned.
+     *
+     * @param blobData The blob binary data to return
+     */
+    public void mockGetBlobReturns(ByteString blobData) {
+        GetBlobResponse response = GetBlobResponse.newBuilder()
+                .setData(blobData)
+                .build();
+
+        pipeDocService.stubFor(
+                method("GetBlob")
+                        .willReturn(message(response))
+        );
+    }
+
+    /**
+     * Mock GetBlob to return NOT_FOUND for a specific storage reference.
+     *
+     * @param storageRef The file storage reference
+     */
+    public void mockGetBlobNotFound(FileStorageReference storageRef) {
+        GetBlobRequest request = GetBlobRequest.newBuilder()
+                .setStorageRef(storageRef)
+                .build();
+
+        pipeDocService.stubFor(
+                method("GetBlob")
+                        .withRequestMessage(WireMockGrpc.equalToMessage(request))
+                        .willReturn(WireMockGrpc.Status.NOT_FOUND,
+                                "Blob not found: drive=" + storageRef.getDriveName() + 
+                                ", objectKey=" + storageRef.getObjectKey())
+        );
+    }
+
+    /**
+     * Mock GetBlob to return UNAVAILABLE for any request.
+     * Used for testing retry behavior.
+     */
+    public void mockGetBlobUnavailable() {
+        pipeDocService.stubFor(
+                method("GetBlob")
+                        .willReturn(WireMockGrpc.Status.UNAVAILABLE,
+                                "Blob service temporarily unavailable")
+        );
+    }
+
+    /**
+     * Mock GetBlob to return UNAVAILABLE for a specific storage reference.
+     *
+     * @param storageRef The file storage reference
+     */
+    public void mockGetBlobUnavailable(FileStorageReference storageRef) {
+        GetBlobRequest request = GetBlobRequest.newBuilder()
+                .setStorageRef(storageRef)
+                .build();
+
+        pipeDocService.stubFor(
+                method("GetBlob")
+                        .withRequestMessage(WireMockGrpc.equalToMessage(request))
+                        .willReturn(WireMockGrpc.Status.UNAVAILABLE,
+                                "Blob service temporarily unavailable")
+        );
+    }
+
+    /**
+     * Mock GetBlob to return INTERNAL error.
+     * Used for testing error handling.
+     *
+     * @param errorMessage Error message
+     */
+    public void mockGetBlobError(String errorMessage) {
+        pipeDocService.stubFor(
+                method("GetBlob")
+                        .willReturn(WireMockGrpc.Status.INTERNAL, errorMessage)
+        );
+    }
+
+    // ============================================
+    // SavePipeDoc Mocks
+    // ============================================
+
+    /**
+     * Mock SavePipeDoc to return a successful response for any request.
+     * The response includes the nodeId, drive, s3Key, and metadata.
+     *
+     * @param nodeId   The node ID to return in the response
+     * @param drive    The drive name to return in the response
+     * @param s3Key    The S3 object key to return in the response
+     */
+    public void mockSavePipeDoc(String nodeId, String drive, String s3Key) {
+        SavePipeDocResponse response = SavePipeDocResponse.newBuilder()
+                .setNodeId(nodeId)
+                .setDrive(drive)
+                .setS3Key(s3Key)
+                .setSizeBytes(1024)
+                .setChecksum("sha256:mock-checksum-" + UUID.randomUUID().toString().substring(0, 8))
+                .build();
+
+        pipeDocService.stubFor(
+                method("SavePipeDoc")
+                        .willReturn(message(response))
+        );
+        LOG.debug("Mocked SavePipeDoc to return nodeId={}, drive={}, s3Key={}", nodeId, drive, s3Key);
+    }
+
+    /**
+     * Mock SavePipeDoc to return a successful response with just the nodeId.
+     * Other fields will have default values.
+     *
+     * @param nodeId The node ID to return in the response
+     */
+    public void mockSavePipeDoc(String nodeId) {
+        mockSavePipeDoc(nodeId, "default-drive", "pipedocs/" + nodeId + "/" + UUID.randomUUID().toString());
+    }
+
+    /**
+     * Mock SavePipeDoc for a specific PipeDoc request.
+     * This allows matching on the exact PipeDoc content being saved.
+     *
+     * @param expectedDoc The expected PipeDoc to match
+     * @param nodeId      The node ID to return
+     * @param drive       The drive name to return
+     * @param s3Key       The S3 key to return
+     */
+    public void mockSavePipeDocWithRequest(PipeDoc expectedDoc, String nodeId, String drive, String s3Key) {
+        SavePipeDocRequest request = SavePipeDocRequest.newBuilder()
+                .setPipedoc(expectedDoc)
+                .setDrive(drive)
+                .build();
+
+        SavePipeDocResponse response = SavePipeDocResponse.newBuilder()
+                .setNodeId(nodeId)
+                .setDrive(drive)
+                .setS3Key(s3Key)
+                .setSizeBytes(expectedDoc.getSerializedSize())
+                .setChecksum("sha256:mock-checksum-" + UUID.randomUUID().toString().substring(0, 8))
+                .build();
+
+        pipeDocService.stubFor(
+                method("SavePipeDoc")
+                        .withRequestMessage(WireMockGrpc.equalToMessage(request))
+                        .willReturn(message(response))
+        );
+        LOG.debug("Mocked SavePipeDoc for specific doc: docId={}, nodeId={}", expectedDoc.getDocId(), nodeId);
+    }
+
+    /**
+     * Mock SavePipeDoc for a specific connector ID.
+     * Useful for testing connector-specific save behavior.
+     *
+     * @param connectorId The connector ID to match
+     * @param nodeId      The node ID to return
+     * @param drive       The drive name to return
+     */
+    public void mockSavePipeDocForConnector(String connectorId, String nodeId, String drive) {
+        // Note: WireMock gRPC doesn't support partial matching well, so we use a general response
+        // and the test should use the same connectorId
+        SavePipeDocResponse response = SavePipeDocResponse.newBuilder()
+                .setNodeId(nodeId)
+                .setDrive(drive)
+                .setS3Key("pipedocs/" + connectorId + "/" + nodeId + "/" + UUID.randomUUID().toString())
+                .setSizeBytes(1024)
+                .setChecksum("sha256:mock-checksum")
+                .build();
+
+        pipeDocService.stubFor(
+                method("SavePipeDoc")
+                        .willReturn(message(response))
+        );
+        LOG.debug("Mocked SavePipeDoc for connector: connectorId={}, nodeId={}", connectorId, nodeId);
+    }
+
+    /**
+     * Mock SavePipeDoc to return UNAVAILABLE error.
+     * Used for testing retry behavior.
+     */
+    public void mockSavePipeDocUnavailable() {
+        pipeDocService.stubFor(
+                method("SavePipeDoc")
+                        .willReturn(WireMockGrpc.Status.UNAVAILABLE,
+                                "PipeDoc save service temporarily unavailable")
+        );
+    }
+
+    /**
+     * Mock SavePipeDoc to return INTERNAL error.
+     * Used for testing error handling.
+     *
+     * @param errorMessage The error message
+     */
+    public void mockSavePipeDocError(String errorMessage) {
+        pipeDocService.stubFor(
+                method("SavePipeDoc")
+                        .willReturn(WireMockGrpc.Status.INTERNAL, errorMessage)
+        );
+    }
+
+    /**
+     * Mock SavePipeDoc to return RESOURCE_EXHAUSTED error.
+     * Used for testing storage quota scenarios.
+     *
+     * @param errorMessage The error message
+     */
+    public void mockSavePipeDocStorageFull(String errorMessage) {
+        pipeDocService.stubFor(
+                method("SavePipeDoc")
+                        .willReturn(WireMockGrpc.Status.RESOURCE_EXHAUSTED, errorMessage)
+        );
+    }
+
+    /**
+     * Mock SavePipeDoc to return ALREADY_EXISTS error.
+     * Used for testing duplicate document scenarios.
+     *
+     * @param docId The document ID that already exists
+     */
+    public void mockSavePipeDocAlreadyExists(String docId) {
+        pipeDocService.stubFor(
+                method("SavePipeDoc")
+                        .willReturn(WireMockGrpc.Status.ALREADY_EXISTS,
+                                "Document already exists: " + docId)
+        );
+    }
+
+    // ============================================
     // Utility Methods
     // ============================================
 
@@ -282,6 +584,14 @@ public class PipeDocServiceMock implements ServiceMockInitializer {
      */
     private String makeKey(String docId, String accountId) {
         return docId + "::" + accountId;
+    }
+
+    /**
+     * Create a composite key for blob lookup.
+     */
+    private String makeBlobKey(FileStorageReference storageRef) {
+        String versionId = storageRef.hasVersionId() ? storageRef.getVersionId() : "";
+        return storageRef.getDriveName() + "::" + storageRef.getObjectKey() + "::" + versionId;
     }
 
     /**
@@ -316,11 +626,41 @@ public class PipeDocServiceMock implements ServiceMockInitializer {
     }
 
     /**
+     * Get a registered blob.
+     *
+     * @param storageRef The file storage reference
+     * @return The registered blob or null if not found
+     */
+    public RegisteredBlob getRegisteredBlob(FileStorageReference storageRef) {
+        return registeredBlobs.get(makeBlobKey(storageRef));
+    }
+
+    /**
+     * Check if a blob is registered.
+     *
+     * @param storageRef The file storage reference
+     * @return true if the blob is registered
+     */
+    public boolean hasRegisteredBlob(FileStorageReference storageRef) {
+        return registeredBlobs.containsKey(makeBlobKey(storageRef));
+    }
+
+    /**
+     * Get the count of registered blobs.
+     *
+     * @return Number of registered blobs
+     */
+    public int getRegisteredBlobCount() {
+        return registeredBlobs.size();
+    }
+
+    /**
      * Reset all WireMock stubs for the PipeDoc service.
      */
     public void reset() {
         pipeDocService.resetAll();
         registeredDocs.clear();
+        registeredBlobs.clear();
     }
 
     // ============================================
@@ -343,6 +683,19 @@ public class PipeDocServiceMock implements ServiceMockInitializer {
             this.pipeDoc = pipeDoc;
             this.nodeId = nodeId;
             this.drive = drive;
+        }
+    }
+
+    /**
+     * Represents a registered blob.
+     */
+    public static class RegisteredBlob {
+        public final FileStorageReference storageRef;
+        public final ByteString blobData;
+
+        public RegisteredBlob(FileStorageReference storageRef, ByteString blobData) {
+            this.storageRef = storageRef;
+            this.blobData = blobData;
         }
     }
 }
