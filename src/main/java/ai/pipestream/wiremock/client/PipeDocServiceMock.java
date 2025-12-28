@@ -95,6 +95,9 @@ public class PipeDocServiceMock implements ServiceMockInitializer {
 
         LOG.info("Initializing default PipeDocService stubs");
 
+        // IMPORTANT: install generic fallbacks first. Specific stubs registered later should win for matching requests.
+        setupDefaultStubs();
+
         // Register some default test documents
         PipeDoc testDoc1 = PipeDoc.newBuilder()
                 .setDocId("test-doc-1")
@@ -106,9 +109,6 @@ public class PipeDocServiceMock implements ServiceMockInitializer {
                 .build();
         registerPipeDoc("test-doc-2", "test-account", testDoc2, "node-2", "test-drive");
 
-        // Set up default stubs for unknown documents and blobs
-        setupDefaultStubs();
-        
         // Register some default test blobs
         FileStorageReference testBlobRef1 = FileStorageReference.newBuilder()
                 .setDriveName("test-drive")
@@ -206,9 +206,17 @@ public class PipeDocServiceMock implements ServiceMockInitializer {
                 .setRetrievedAtEpochMs(System.currentTimeMillis())
                 .build();
 
+        // Match request by docId+accountId, ignoring optional fields like source_node_id.
+        // WireMockGrpc.equalToMessage uses WireMock.equalToJson(json, true, false):
+        // - ignoreArrayOrder = true
+        // - ignoreExtraElements = false
+        // So we must use a JSON pattern that allows extra fields.
+        // We do that by using equalToJson with ignoreExtraElements=true.
+        String requestJson = org.wiremock.grpc.internal.JsonMessageUtils.toJson(request);
+
         pipeDocService.stubFor(
                 method("GetPipeDocByReference")
-                        .withRequestMessage(WireMockGrpc.equalToMessage(request))
+                        .withRequestMessage(com.github.tomakehurst.wiremock.client.WireMock.equalToJson(requestJson, true, true))
                         .willReturn(message(response))
         );
     }

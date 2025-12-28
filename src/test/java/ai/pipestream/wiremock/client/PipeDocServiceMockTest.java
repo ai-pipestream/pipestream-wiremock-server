@@ -1,6 +1,7 @@
 package ai.pipestream.wiremock.client;
 
 import ai.pipestream.data.v1.FileStorageReference;
+import ai.pipestream.data.v1.DocumentReference;
 import ai.pipestream.data.v1.PipeDoc;
 import ai.pipestream.repository.pipedoc.v1.*;
 import com.github.tomakehurst.wiremock.WireMockServer;
@@ -79,6 +80,35 @@ class PipeDocServiceMockTest {
         assertEquals("account-456", regDoc.accountId);
         assertEquals("node-1", regDoc.nodeId);
         assertEquals("drive-1", regDoc.drive);
+    }
+
+    @Test
+    @DisplayName("Should match GetPipeDocByReference even when DocumentReference includes sourceNodeId")
+    void testGetByReferenceMatchesWithSourceNodeId() {
+        PipeDoc doc = PipeDoc.newBuilder()
+                .setDocId("doc-with-source-node")
+                .build();
+
+        pipeDocMock.registerPipeDoc("doc-with-source-node", "account-xyz", doc, "node-1", "drive-1");
+
+        // Include sourceNodeId in the request; server should still match by docId+accountId.
+        DocumentReference docRef = DocumentReference.newBuilder()
+                .setDocId("doc-with-source-node")
+                .setAccountId("account-xyz")
+                .setSourceNodeId("node-parser")
+                .build();
+
+        GetPipeDocByReferenceRequest request = GetPipeDocByReferenceRequest.newBuilder()
+                .setDocumentRef(docRef)
+                .build();
+
+        GetPipeDocByReferenceResponse response = stub.getPipeDocByReference(request);
+
+        assertNotNull(response);
+        assertTrue(response.hasPipedoc());
+        assertEquals("doc-with-source-node", response.getPipedoc().getDocId());
+        assertEquals("node-1", response.getNodeId());
+        assertEquals("drive-1", response.getDrive());
     }
 
     @Test
