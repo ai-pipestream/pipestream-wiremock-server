@@ -108,8 +108,17 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew build -Pversion=${{ env.RELEASE_VERSION }} --no-daemon --configuration-cache
 
+      - name: Publish Test Report
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Test Results
+          path: "**/build/test-results/test/TEST-*.xml"
+          reporter: java-junit
+          fail-on-error: false
+
       - name: Upload Test Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: test-report-${{ env.RELEASE_VERSION }}
