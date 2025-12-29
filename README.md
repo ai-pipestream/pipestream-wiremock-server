@@ -62,6 +62,8 @@ docker run -p 8080:8080 -p 50052:50052 ghcr.io/ai-pipestream/pipestream-wiremock
 
 ## Mocked Services
 
+This server provides comprehensive mocking capabilities for the Pipestream platform, supporting isolated integration testing.
+
 ### Platform Registration Service (Port 50052)
 
 The Direct gRPC Server implements the `PlatformRegistrationService` to test the platform's ability to handle streaming registration events.
@@ -72,6 +74,87 @@ The Direct gRPC Server implements the `PlatformRegistrationService` to test the 
 | `registerModule` | Emits a sequence of 10 events (including schema validation and Apicurio registration phases). |
 | `listServices` | Returns a static list of 2 mock services (`repository-service`, `account-manager`). |
 | `listModules` | Returns a static list of 2 mock modules (`parser`, `chunker`). |
+
+### PipeDoc Service Mock (Repository Service)
+
+**Class:** `ai.pipestream.wiremock.client.PipeDocServiceMock`
+
+Provides complete mocking for document storage and retrieval operations, supporting the Kafka Sidecar and Engine integration testing.
+
+**Features:**
+- **Document Operations**: `savePipeDoc`, `getPipeDoc` (GetPipeDocByReference)
+- **Blob Operations**: Binary data retrieval with `GetBlob`
+- **Error Scenarios**: NOT_FOUND, UNAVAILABLE, INTERNAL, RESOURCE_EXHAUSTED, ALREADY_EXISTS
+- **Configurable Behavior**: Latencies, failures, and custom responses
+
+**Example Usage:**
+```java
+PipeDocServiceMock mock = new PipeDocServiceMock(wireMock);
+
+// Register a document
+PipeDoc doc = PipeDoc.newBuilder().setDocId("doc-123").build();
+mock.registerPipeDoc("doc-123", "account-456", doc);
+
+// Register a blob
+FileStorageReference blobRef = FileStorageReference.newBuilder()
+    .setDriveName("default")
+    .setObjectKey("blob-uuid.bin")
+    .build();
+mock.registerBlob(blobRef, ByteString.copyFromUtf8("content"));
+
+// Mock error scenarios
+mock.mockSavePipeDocUnavailable(); // For retry testing
+mock.mockGetBlobNotFound(blobRef); // For missing blob scenarios
+```
+
+### Module Service Mock (PipeStepProcessor)
+
+**Classes:** 
+- `ai.pipestream.wiremock.client.PipeStepProcessorMock` - Core module processing mock
+- `ai.pipestream.wiremock.client.MockModuleRegistry` - High-level configuration API
+
+Generic module service supporting all module types (parser, chunker, embedder, sink) with configurable success/failure scenarios.
+
+**Features:**
+- **Module Types**: Parser, Chunker, Embedder, Sink
+- **Capability Management**: Dynamic module capabilities via gRPC metadata headers
+- **Processing Scenarios**: Success, failure, blob not hydrated, unavailable
+- **Pre-configured Flows**: Parser flow, direct flow, error scenarios, large file testing
+
+**Example Usage:**
+```java
+MockModuleRegistry registry = new MockModuleRegistry(wireMock);
+
+// Register modules using fluent API
+registry.registerParserModule("tika-parser")
+    .version("1.0.0")
+    .host("localhost", 50053)
+    .supportedMimeTypes("application/pdf", "text/plain")
+    .build();
+
+registry.registerChunkerModule("text-chunker")
+    .chunkSize(512)
+    .overlap(50)
+    .build();
+
+// Or use pre-configured scenarios
+registry.setupParserFlowScenario(); // Complete parser pipeline
+registry.setupDirectFlowScenario(); // No-parser pipeline
+registry.setupErrorScenarios(); // Error handling testing
+
+// Configure module behavior
+registry.setActiveModule("tika-parser");
+registry.getProcessorMock().mockProcessDataSuccess();
+registry.getProcessorMock().mockProcessDataFailure("Error", "CODE");
+```
+
+### Additional Mocks
+
+- **FilesystemServiceMock**: Mock blob storage with configurable test blobs
+- **AccountManagerMock**: User account and authentication mocking
+- **DataSourceAdminMock**: Data source configuration mocking
+- **EngineV1ServiceMock**: Engine service operations
+- **ServiceMockRegistry**: Auto-discovery and initialization of all mocks via ServiceLoader
 
 ## Configuration
 
