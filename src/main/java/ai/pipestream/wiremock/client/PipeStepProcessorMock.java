@@ -92,7 +92,7 @@ public class PipeStepProcessorMock implements ServiceMockInitializer {
     private final Map<String, ModuleConfig> registeredModules = new HashMap<>();
 
     // Track header-based stub mappings for cleanup
-    private final List<UUID> headerBasedStubIds = new ArrayList<>();
+    private final List<StubMapping> headerBasedStubs = new ArrayList<>();
 
     /**
      * Create a helper for the given WireMock client.
@@ -293,7 +293,7 @@ public class PipeStepProcessorMock implements ServiceMockInitializer {
                                 .atPriority(1) // Higher priority (lower number = higher priority)
                                 .willReturn(okJson(responseJson))
                 );
-                headerBasedStubIds.add(headerStub.getId());
+                headerBasedStubs.add(headerStub);
                 LOG.debug("Created header-based stub for module: {} (id: {})", config.moduleName, headerStub.getId());
             } catch (Exception e) {
                 LOG.warn("Failed to create header-based stub for module {}: {}", config.moduleName, e.getMessage());
@@ -538,18 +538,18 @@ public class PipeStepProcessorMock implements ServiceMockInitializer {
      * Reset all WireMock stubs for the processor service.
      */
     public void reset() {
-        // Remove header-based stubs by ID using the stub mapping we saved
+        // Remove header-based stubs using the actual StubMapping objects
         if (wireMock != null) {
-            for (UUID stubId : headerBasedStubIds) {
+            for (StubMapping stub : headerBasedStubs) {
                 try {
-                    // Use removeStub with a MappingBuilder that has the ID
-                    wireMock.removeStub(post(anyUrl()).withId(stubId));
+                    wireMock.removeStubMapping(stub);
+                    LOG.debug("Removed header-based stub: {}", stub.getId());
                 } catch (Exception e) {
-                    LOG.debug("Could not remove stub {}: {}", stubId, e.getMessage());
+                    LOG.debug("Could not remove stub {}: {}", stub.getId(), e.getMessage());
                 }
             }
         }
-        headerBasedStubIds.clear();
+        headerBasedStubs.clear();
 
         // Reset gRPC service stubs
         processorService.resetAll();
