@@ -174,6 +174,35 @@ public class DataSourceAdminMock implements ServiceMockInitializer {
     }
 
     /**
+     * Mock a successful ValidateApiKey response with a full DataSourceConfig.
+     * <p>
+     * This method allows callers to specify the complete DataSourceConfig including
+     * ConnectorGlobalConfig (PersistenceConfig, HydrationConfig, etc.) for testing
+     * the 2-tier configuration model.
+     *
+     * @param datasourceId The datasource ID
+     * @param apiKey The API key to match
+     * @param config The full DataSourceConfig to return (must include datasourceId and accountId)
+     */
+    public void mockValidateApiKeyWithConfig(String datasourceId, String apiKey, DataSourceConfig config) {
+        ValidateApiKeyRequest request = ValidateApiKeyRequest.newBuilder()
+                .setDatasourceId(datasourceId)
+                .setApiKey(apiKey)
+                .build();
+
+        ValidateApiKeyResponse response = ValidateApiKeyResponse.newBuilder()
+                .setValid(true)
+                .setConfig(config)
+                .build();
+
+        datasourceService.stubFor(
+                method("ValidateApiKey")
+                        .withRequestMessage(WireMockGrpc.equalToMessage(request))
+                        .willReturn(message(response))
+        );
+    }
+
+    /**
      * Mock an invalid API key response.
      *
      * @param datasourceId The datasource ID

@@ -1,6 +1,7 @@
 package ai.pipestream.wiremock.client;
 
 import ai.pipestream.connector.intake.v1.*;
+import ai.pipestream.data.v1.HydrationConfig;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
@@ -106,6 +107,80 @@ public class DataSourceAdminMockTest {
         assertEquals("test-drive", config.getDriveName());
         assertEquals(100_000_000, config.getMaxFileSize());
         assertEquals(1000, config.getRateLimitPerMinute());
+    }
+
+    @Test
+    void testValidateApiKey_WithFullConfig() {
+        // Configure a stub with full DataSourceConfig including ConnectorGlobalConfig
+        // This demonstrates how to test the 2-tier configuration model
+        DataSourceConfig fullConfig = DataSourceConfig.newBuilder()
+                .setDatasourceId("test-datasource-full")
+                .setAccountId("test-account")
+                .setConnectorId("test-connector")
+                .setDriveName("test-drive")
+                .setMaxFileSize(100_000_000)
+                .setRateLimitPerMinute(1000)
+                .setGlobalConfig(
+                        DataSourceConfig.ConnectorGlobalConfig.newBuilder()
+                                .setPersistenceConfig(
+                                        DataSourceConfig.PersistenceConfig.newBuilder()
+                                                .setPersistPipedoc(true)
+                                                .setMaxInlineSizeBytes(1048576) // 1MB
+                                                .build()
+                                )
+                                .setHydrationConfig(
+                                        HydrationConfig.newBuilder()
+                                                .setDefaultHydrationPolicy(
+                                                        HydrationConfig.HydrationPolicy.HYDRATION_POLICY_AUTO
+                                                )
+                                                .setMaxInlineBlobSizeBytes(5242880) // 5MB
+                                                .build()
+                                )
+                                .build()
+                )
+                .build();
+
+        dataSourceAdminMock.mockValidateApiKeyWithConfig(
+                "test-datasource-full",
+                "valid-api-key",
+                fullConfig
+        );
+
+        // Call the mocked service
+        ValidateApiKeyRequest request = ValidateApiKeyRequest.newBuilder()
+                .setDatasourceId("test-datasource-full")
+                .setApiKey("valid-api-key")
+                .build();
+
+        ValidateApiKeyResponse response = stub.validateApiKey(request);
+
+        // Verify the response
+        assertNotNull(response);
+        assertTrue(response.getValid());
+        assertTrue(response.hasConfig());
+        
+        DataSourceConfig config = response.getConfig();
+        assertEquals("test-datasource-full", config.getDatasourceId());
+        assertEquals("test-account", config.getAccountId());
+        assertEquals("test-connector", config.getConnectorId());
+        assertEquals("test-drive", config.getDriveName());
+        
+        // Verify ConnectorGlobalConfig is present
+        assertTrue(config.hasGlobalConfig());
+        DataSourceConfig.ConnectorGlobalConfig globalConfig = config.getGlobalConfig();
+        
+        // Verify PersistenceConfig
+        assertTrue(globalConfig.hasPersistenceConfig());
+        assertEquals(true, globalConfig.getPersistenceConfig().getPersistPipedoc());
+        assertEquals(1048576, globalConfig.getPersistenceConfig().getMaxInlineSizeBytes());
+        
+        // Verify HydrationConfig
+        assertTrue(globalConfig.hasHydrationConfig());
+        assertEquals(
+                HydrationConfig.HydrationPolicy.HYDRATION_POLICY_AUTO,
+                globalConfig.getHydrationConfig().getDefaultHydrationPolicy()
+        );
+        assertEquals(5242880, globalConfig.getHydrationConfig().getMaxInlineBlobSizeBytes());
     }
 
     @Test
