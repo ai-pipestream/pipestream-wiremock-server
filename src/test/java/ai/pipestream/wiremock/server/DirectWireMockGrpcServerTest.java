@@ -1,6 +1,8 @@
 package ai.pipestream.wiremock.server;
 
 import ai.pipestream.platform.registration.v1.*;
+import ai.pipestream.repository.account.v1.AccountServiceGrpc;
+import ai.pipestream.repository.account.v1.StreamAllAccountsRequest;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -28,6 +30,7 @@ class DirectWireMockGrpcServerTest {
     private ManagedChannel channel;
     private PlatformRegistrationServiceGrpc.PlatformRegistrationServiceStub asyncStub;
     private PlatformRegistrationServiceGrpc.PlatformRegistrationServiceBlockingStub blockingStub;
+    private AccountServiceGrpc.AccountServiceBlockingStub accountBlockingStub;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -46,6 +49,7 @@ class DirectWireMockGrpcServerTest {
                 .build();
         asyncStub = PlatformRegistrationServiceGrpc.newStub(channel);
         blockingStub = PlatformRegistrationServiceGrpc.newBlockingStub(channel);
+        accountBlockingStub = AccountServiceGrpc.newBlockingStub(channel);
     }
 
     @AfterEach
@@ -255,5 +259,25 @@ class DirectWireMockGrpcServerTest {
         assertEquals("application/json", module2.getInputFormat());
         assertEquals("application/json", module2.getOutputFormat());
         assertTrue(module2.getIsHealthy());
+    }
+
+    @Test
+    void testStreamAllAccounts_DefaultsExcludeInactive() {
+        var iterator = accountBlockingStub.streamAllAccounts(StreamAllAccountsRequest.newBuilder().build());
+        boolean foundActive = false;
+        boolean foundInactive = false;
+
+        while (iterator.hasNext()) {
+            var account = iterator.next().getAccount();
+            if ("valid-account".equals(account.getAccountId())) {
+                foundActive = true;
+            }
+            if ("inactive-account".equals(account.getAccountId())) {
+                foundInactive = true;
+            }
+        }
+
+        assertTrue(foundActive, "Stream should include active accounts by default");
+        assertFalse(foundInactive, "Stream should exclude inactive accounts by default");
     }
 }

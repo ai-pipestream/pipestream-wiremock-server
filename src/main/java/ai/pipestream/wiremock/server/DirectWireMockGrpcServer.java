@@ -30,8 +30,18 @@ import ai.pipestream.repository.filesystem.upload.v1.NodeUploadServiceGrpc;
 import ai.pipestream.repository.filesystem.upload.v1.UploadFilesystemPipeDocRequest;
 import ai.pipestream.repository.filesystem.upload.v1.UploadFilesystemPipeDocResponse;
 
+import ai.pipestream.repository.account.v1.Account;
+import ai.pipestream.repository.account.v1.AccountServiceGrpc;
+import ai.pipestream.repository.account.v1.GetAccountRequest;
+import ai.pipestream.repository.account.v1.GetAccountResponse;
+import ai.pipestream.repository.account.v1.StreamAllAccountsRequest;
+import ai.pipestream.repository.account.v1.StreamAllAccountsResponse;
+import ai.pipestream.wiremock.client.MockConfig;
 import java.io.IOException;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -123,6 +133,7 @@ public class DirectWireMockGrpcServer {
                 .intercept(new TestMetadataInterceptor())
                 .addService(new PlatformRegistrationServiceImpl())
                 .addService(new NodeUploadServiceImpl())
+                .addService(new AccountServiceStreamingImpl())
                 .addService(ProtoReflectionServiceV1.newInstance())
                 .build();
     }
@@ -460,6 +471,190 @@ public class DirectWireMockGrpcServer {
             responseObserver.onNext(response);
             responseObserver.onCompleted();
             LOG.info("DirectWireMockGrpcServer: listPlatformModules completed.");
+        }
+    }
+
+    /**
+     * Streaming implementation of AccountService for bulk account listing.
+     * <p>
+     * WireMock's gRPC extension does not support server-side streaming well, so
+     * this direct server handles the StreamAllAccounts RPC.
+     */
+    private static class AccountServiceStreamingImpl extends AccountServiceGrpc.AccountServiceImplBase {
+        private static final String STREAM_IDS_KEY = "wiremock.account.StreamAllAccounts.ids";
+        private static final String STREAM_NAMES_KEY = "wiremock.account.StreamAllAccounts.names";
+        private static final String STREAM_DESCRIPTIONS_KEY = "wiremock.account.StreamAllAccounts.descriptions";
+        private static final String STREAM_ACTIVES_KEY = "wiremock.account.StreamAllAccounts.actives";
+
+        private final List<Account> streamAccounts;
+
+        private AccountServiceStreamingImpl() {
+            this.streamAccounts = buildStreamAccounts(new MockConfig());
+        }
+
+        @Override
+        public void streamAllAccounts(StreamAllAccountsRequest request, StreamObserver<StreamAllAccountsResponse> responseObserver) {
+            String query = request.getQuery() != null ? request.getQuery().trim().toLowerCase(Locale.ROOT) : "";
+            boolean includeInactive = request.getIncludeInactive();
+
+            LOG.infof("DirectWireMockGrpcServer: streamAllAccounts called query='%s' includeInactive=%s", query, includeInactive);
+
+            for (Account account : streamAccounts) {
+                if (!includeInactive && !account.getActive()) {
+                    continue;
+                }
+                if (!query.isEmpty() && !matchesQuery(account, query)) {
+                    continue;
+                }
+                responseObserver.onNext(StreamAllAccountsResponse.newBuilder()
+                        .setAccount(account)
+                        .build());
+            }
+
+            responseObserver.onCompleted();
+        }
+
+        @Override
+        public void getAccount(GetAccountRequest request, StreamObserver<GetAccountResponse> responseObserver) {
+            String accountId = request.getAccountId();
+            Account account = findAccount(accountId);
+            if (account == null) {
+                responseObserver.onError(io.grpc.Status.NOT_FOUND
+                        .withDescription("Account not found: " + accountId)
+                        .asRuntimeException());
+                return;
+            }
+            responseObserver.onNext(GetAccountResponse.newBuilder()
+                    .setAccount(account)
+                    .build());
+            responseObserver.onCompleted();
+        }
+
+        private boolean matchesQuery(Account account, String query) {
+            String accountId = account.getAccountId().toLowerCase(Locale.ROOT);
+            String name = account.getName().toLowerCase(Locale.ROOT);
+            return accountId.contains(query) || name.contains(query);
+        }
+
+        private Account findAccount(String accountId) {
+            if (accountId == null || accountId.isBlank()) {
+                return null;
+            }
+            for (Account account : streamAccounts) {
+                if (accountId.equals(account.getAccountId())) {
+                    return account;
+                }
+            }
+            return null;
+        }
+
+        private List<Account> buildStreamAccounts(MockConfig config) {
+            String idsValue = getConfig(config, STREAM_IDS_KEY, "");
+            if (idsValue == null || idsValue.isBlank()) {
+                return defaultStreamAccounts(config);
+            }
+
+            List<String> ids = parseCsv(idsValue);
+            List<String> names = parseCsv(getConfig(config, STREAM_NAMES_KEY, ""));
+            List<String> descriptions = parseCsv(getConfig(config, STREAM_DESCRIPTIONS_KEY, ""));
+            List<String> actives = parseCsv(getConfig(config, STREAM_ACTIVES_KEY, ""));
+
+            List<Account> accounts = new ArrayList<>();
+            Timestamp timestamp = currentTimestamp();
+
+            for (int i = 0; i < ids.size(); i++) {
+                String id = ids.get(i).trim();
+                if (id.isEmpty()) {
+                    continue;
+                }
+                String name = i < names.size() ? names.get(i).trim() : id;
+                String description = i < descriptions.size() ? descriptions.get(i).trim() : "";
+                boolean active = i < actives.size() ? Boolean.parseBoolean(actives.get(i).trim()) : true;
+
+                accounts.add(Account.newBuilder()
+                        .setAccountId(id)
+                        .setName(name)
+                        .setDescription(description)
+                        .setActive(active)
+                        .setCreatedAt(timestamp)
+                        .setUpdatedAt(timestamp)
+                        .build());
+            }
+
+            if (accounts.isEmpty()) {
+                return defaultStreamAccounts(config);
+            }
+            return accounts;
+        }
+
+        private List<Account> defaultStreamAccounts(MockConfig config) {
+            List<Account> accounts = new ArrayList<>();
+            Timestamp timestamp = currentTimestamp();
+
+            String defaultId = getConfig(config, "wiremock.account.GetAccount.default.id", "default-account");
+            String defaultName = getConfig(config, "wiremock.account.GetAccount.default.name", "Default Account");
+            String defaultDescription = getConfig(config, "wiremock.account.GetAccount.default.description", "Default account for testing");
+            boolean defaultActive = Boolean.parseBoolean(getConfig(config, "wiremock.account.GetAccount.default.active", "true"));
+
+            accounts.add(Account.newBuilder()
+                    .setAccountId(defaultId)
+                    .setName(defaultName)
+                    .setDescription(defaultDescription)
+                    .setActive(defaultActive)
+                    .setCreatedAt(timestamp)
+                    .setUpdatedAt(timestamp)
+                    .build());
+
+            accounts.add(Account.newBuilder()
+                    .setAccountId("valid-account")
+                    .setName("Valid Account")
+                    .setDescription("Valid account for testing")
+                    .setActive(true)
+                    .setCreatedAt(timestamp)
+                    .setUpdatedAt(timestamp)
+                    .build());
+
+            accounts.add(Account.newBuilder()
+                    .setAccountId("inactive-account")
+                    .setName("Inactive Account")
+                    .setDescription("Inactive account for testing")
+                    .setActive(false)
+                    .setCreatedAt(timestamp)
+                    .setUpdatedAt(timestamp)
+                    .build());
+
+            return accounts;
+        }
+
+        private List<String> parseCsv(String value) {
+            if (value == null || value.isBlank()) {
+                return List.of();
+            }
+            String[] parts = value.split(",");
+            List<String> results = new ArrayList<>(parts.length);
+            for (String part : parts) {
+                results.add(part.trim());
+            }
+            return results;
+        }
+
+        private String getConfig(MockConfig config, String key, String defaultValue) {
+            if (config.hasKey(key)) {
+                return config.get(key, defaultValue);
+            }
+            String lowerKey = key.toLowerCase(Locale.ROOT);
+            if (config.hasKey(lowerKey)) {
+                return config.get(lowerKey, defaultValue);
+            }
+            return config.get(key, defaultValue);
+        }
+
+        private Timestamp currentTimestamp() {
+            Instant now = Instant.now();
+            return Timestamp.newBuilder()
+                    .setSeconds(now.getEpochSecond())
+                    .setNanos(now.getNano())
+                    .build();
         }
     }
 }

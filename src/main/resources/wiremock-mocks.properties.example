@@ -11,6 +11,12 @@ wiremock.account.GetAccount.default.active=true
 # AccountService - GetAccount NOT_FOUND stub (optional)
 # wiremock.account.GetAccount.notfound.id=nonexistent-account
 
+# AccountService - StreamAllAccounts (CSV lists aligned by index)
+# wiremock.account.StreamAllAccounts.ids=valid-account,inactive-account
+# wiremock.account.StreamAllAccounts.names=Valid Account,Inactive Account
+# wiremock.account.StreamAllAccounts.descriptions=Valid account for testing,Inactive account for testing
+# wiremock.account.StreamAllAccounts.actives=true,false
+
 
 
 
