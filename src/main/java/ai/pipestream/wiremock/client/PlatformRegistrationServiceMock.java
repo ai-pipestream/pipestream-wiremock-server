@@ -33,6 +33,7 @@ public class PlatformRegistrationServiceMock implements ServiceMockInitializer {
     private static final Logger LOG = LoggerFactory.getLogger(PlatformRegistrationServiceMock.class);
 
     private static final String SERVICE_NAME = PlatformRegistrationServiceGrpc.SERVICE_NAME;
+    private static final String DEFAULT_HTTP_SCHEMA_VERSION = "1.0.0";
 
     private WireMockGrpcService registrationService;
 
@@ -65,6 +66,7 @@ public class PlatformRegistrationServiceMock implements ServiceMockInitializer {
     @Override
     public void initializeDefaults(WireMock wireMock) {
         this.registrationService = new WireMockGrpcService(wireMock, SERVICE_NAME);
+        MockConfig config = new MockConfig();
 
         LOG.info("Initializing default PlatformRegistrationService stubs");
 
@@ -104,6 +106,13 @@ public class PlatformRegistrationServiceMock implements ServiceMockInitializer {
 
         // Set up default stubs
         setupDefaultStubs();
+        mockGetConnectorSchema(
+                config.get("wiremock.registration.GetConnectorSchema.default.connectorType", "s3"),
+                config.get("wiremock.registration.GetConnectorSchema.default.schemaJson", "{\"type\":\"object\",\"properties\":{}}"),
+                config.get("wiremock.registration.GetConnectorSchema.default.schemaVersion", DEFAULT_HTTP_SCHEMA_VERSION),
+                config.get("wiremock.registration.GetConnectorSchema.default.artifactId", "connector-schema-s3"),
+                List.of(DEFAULT_HTTP_SCHEMA_VERSION)
+        );
 
         LOG.info("Added {} module stubs for PlatformRegistrationService", registeredModules.size());
     }
@@ -262,20 +271,7 @@ public class PlatformRegistrationServiceMock implements ServiceMockInitializer {
                 .setServiceName(serviceInfo.serviceName)
                 .build();
 
-        Instant now = Instant.now();
-        Timestamp timestamp = Timestamp.newBuilder()
-                .setSeconds(now.getEpochSecond())
-                .setNanos(now.getNano())
-                .build();
-
-        GetServiceResponse response = GetServiceResponse.newBuilder()
-                .setServiceName(serviceInfo.serviceName)
-                .setServiceId(serviceInfo.serviceId)
-                .setHost(serviceInfo.host)
-                .setPort(serviceInfo.port)
-                .setIsHealthy(true)
-                .setRegisteredAt(timestamp)
-                .build();
+        GetServiceResponse response = buildGetServiceResponse(serviceInfo);
 
         registrationService.stubFor(
                 method("GetService")
@@ -340,7 +336,64 @@ public class PlatformRegistrationServiceMock implements ServiceMockInitializer {
                 .setPort(serviceInfo.port)
                 .setIsHealthy(true)
                 .setRegisteredAt(timestamp)
+                .addHttpEndpoints(buildDefaultHttpEndpoint(serviceInfo))
+                .setHttpSchemaArtifactId(serviceInfo.serviceName + "-http-schema")
+                .setHttpSchemaVersion(DEFAULT_HTTP_SCHEMA_VERSION)
                 .build();
+    }
+
+    private HttpEndpoint buildDefaultHttpEndpoint(ServiceInfo serviceInfo) {
+        return HttpEndpoint.newBuilder()
+                .setScheme("http")
+                .setHost(serviceInfo.host)
+                .setPort(serviceInfo.port)
+                .setBasePath("/" + serviceInfo.serviceName)
+                .setHealthPath("/q/health")
+                .setTlsEnabled(false)
+                .build();
+    }
+
+    /**
+     * Mock GetConnectorSchema to return connector schema details.
+     */
+    public void mockGetConnectorSchema(String connectorType, String schemaJson, String schemaVersion,
+                                       String artifactId, List<String> availableVersions) {
+        Instant now = Instant.now();
+        Timestamp timestamp = Timestamp.newBuilder()
+                .setSeconds(now.getEpochSecond())
+                .setNanos(now.getNano())
+                .build();
+
+        GetConnectorSchemaResponse response = GetConnectorSchemaResponse.newBuilder()
+                .setConnectorType(connectorType)
+                .setSchemaJson(schemaJson)
+                .setSchemaVersion(schemaVersion)
+                .setArtifactId(artifactId)
+                .setUpdatedAt(timestamp)
+                .addAllAvailableVersions(availableVersions)
+                .build();
+
+        GetConnectorSchemaRequest request = GetConnectorSchemaRequest.newBuilder()
+                .setConnectorType(connectorType)
+                .build();
+
+        registrationService.stubFor(
+                method("GetConnectorSchema")
+                        .withRequestMessage(WireMockGrpc.equalToMessage(request))
+                        .willReturn(message(response))
+        );
+
+        if (schemaVersion != null && !schemaVersion.isBlank()) {
+            GetConnectorSchemaRequest versionedRequest = GetConnectorSchemaRequest.newBuilder()
+                    .setConnectorType(connectorType)
+                    .setVersion(schemaVersion)
+                    .build();
+            registrationService.stubFor(
+                    method("GetConnectorSchema")
+                            .withRequestMessage(WireMockGrpc.equalToMessage(versionedRequest))
+                            .willReturn(message(response))
+            );
+        }
     }
 
     // ============================================

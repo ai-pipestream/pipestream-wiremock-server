@@ -17,6 +17,7 @@ import ai.pipestream.platform.registration.v1.PlatformEventType;
 import ai.pipestream.platform.registration.v1.RegisterRequest;
 import ai.pipestream.platform.registration.v1.RegisterResponse;
 import ai.pipestream.platform.registration.v1.ServiceType;
+import ai.pipestream.platform.registration.v1.HttpEndpoint;
 import ai.pipestream.platform.registration.v1.ListServicesRequest;
 import ai.pipestream.platform.registration.v1.ListServicesResponse;
 import ai.pipestream.platform.registration.v1.ListPlatformModulesRequest;
@@ -304,7 +305,7 @@ public class DirectWireMockGrpcServer {
             String name = request.getName();
             ServiceType serviceType = request.getType();
             
-            if (serviceType == ServiceType.SERVICE_TYPE_SERVICE) {
+            if (serviceType == ServiceType.SERVICE_TYPE_SERVICE || serviceType == ServiceType.SERVICE_TYPE_CONNECTOR) {
                 LOG.info("DirectWireMockGrpcServer: register called for SERVICE: " + name);
                 registerService(responseObserver);
             } else if (serviceType == ServiceType.SERVICE_TYPE_MODULE) {
@@ -420,6 +421,16 @@ public class DirectWireMockGrpcServer {
                             .setPort(8080)
                             .setVersion("1.0.0")
                             .setIsHealthy(true)
+                            .addHttpEndpoints(HttpEndpoint.newBuilder()
+                                    .setScheme("http")
+                                    .setHost("localhost")
+                                    .setPort(8080)
+                                    .setBasePath("/repository-service")
+                                    .setHealthPath("/q/health")
+                                    .setTlsEnabled(false)
+                                    .build())
+                            .setHttpSchemaArtifactId("repository-service-http-schema")
+                            .setHttpSchemaVersion("1.0.0")
                             .build())
                     .addServices(GetServiceResponse.newBuilder()
                             .setServiceName("account-manager")
@@ -428,6 +439,16 @@ public class DirectWireMockGrpcServer {
                             .setPort(38105)
                             .setVersion("1.0.0")
                             .setIsHealthy(true)
+                            .addHttpEndpoints(HttpEndpoint.newBuilder()
+                                    .setScheme("http")
+                                    .setHost("localhost")
+                                    .setPort(38105)
+                                    .setBasePath("/account-manager")
+                                    .setHealthPath("/q/health")
+                                    .setTlsEnabled(false)
+                                    .build())
+                            .setHttpSchemaArtifactId("account-manager-http-schema")
+                            .setHttpSchemaVersion("1.0.0")
                             .build())
                     .setAsOf(currentTimestamp())
                     .setTotalCount(2)

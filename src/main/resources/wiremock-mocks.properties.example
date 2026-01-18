@@ -17,6 +17,12 @@ wiremock.account.GetAccount.default.active=true
 # wiremock.account.StreamAllAccounts.descriptions=Valid account for testing,Inactive account for testing
 # wiremock.account.StreamAllAccounts.actives=true,false
 
+# PlatformRegistrationService - GetConnectorSchema default stub
+# wiremock.registration.GetConnectorSchema.default.connectorType=s3
+# wiremock.registration.GetConnectorSchema.default.schemaJson={"type":"object","properties":{}}
+# wiremock.registration.GetConnectorSchema.default.schemaVersion=1.0.0
+# wiremock.registration.GetConnectorSchema.default.artifactId=connector-schema-s3
+
 
 
 
