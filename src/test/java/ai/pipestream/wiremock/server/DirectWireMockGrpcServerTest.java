@@ -284,4 +284,23 @@ class DirectWireMockGrpcServerTest {
         assertTrue(foundActive, "Stream should include active accounts by default");
         assertFalse(foundInactive, "Stream should exclude inactive accounts by default");
     }
+
+    @Test
+    void testUnregister() {
+        // Create an unregister request
+        UnregisterRequest request = UnregisterRequest.newBuilder()
+                .setName("test-service")
+                .setHost("localhost")
+                .setPort(8080)
+                .build();
+
+        // Call unregister using blocking stub
+        UnregisterResponse response = blockingStub.unregister(request);
+
+        // Verify response
+        assertNotNull(response);
+        assertTrue(response.getSuccess(), "Unregister should always return success");
+        assertFalse(response.getMessage().isEmpty(), "Should have a success message");
+        assertTrue(response.hasTimestamp(), "Should have a timestamp");
+    }
 }

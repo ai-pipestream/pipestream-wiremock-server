@@ -24,6 +24,8 @@ import ai.pipestream.platform.registration.v1.ListPlatformModulesRequest;
 import ai.pipestream.platform.registration.v1.ListPlatformModulesResponse;
 import ai.pipestream.platform.registration.v1.GetServiceResponse;
 import ai.pipestream.platform.registration.v1.GetModuleResponse;
+import ai.pipestream.platform.registration.v1.UnregisterRequest;
+import ai.pipestream.platform.registration.v1.UnregisterResponse;
 import com.google.protobuf.Timestamp;
 import org.jboss.logging.Logger;
 
@@ -492,6 +494,25 @@ public class DirectWireMockGrpcServer {
             responseObserver.onNext(response);
             responseObserver.onCompleted();
             LOG.info("DirectWireMockGrpcServer: listPlatformModules completed.");
+        }
+
+        @Override
+        public void unregister(UnregisterRequest request, StreamObserver<UnregisterResponse> responseObserver) {
+            String name = request.getName();
+            String host = request.getHost();
+            int port = request.getPort();
+
+            LOG.info("DirectWireMockGrpcServer: unregister called for " + name + " at " + host + ":" + port);
+
+            UnregisterResponse response = UnregisterResponse.newBuilder()
+                    .setSuccess(true)
+                    .setMessage("Service unregistered successfully")
+                    .setTimestamp(currentTimestamp())
+                    .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+            LOG.info("DirectWireMockGrpcServer: unregister completed for " + name);
         }
     }
 
