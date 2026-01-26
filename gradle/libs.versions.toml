@@ -12,7 +12,7 @@ proto-google-common-protos = "2.64.1"
 axion-release = "1.21.1"
 jib = "3.5.2"
 protobuf-plugin = "0.9.6"
-nmcp = "1.4.3"
+nmcp = "1.4.4"
 
 [libraries]
 wiremock-core = { module = "org.wiremock:wiremock", version.ref = "wiremock" }
