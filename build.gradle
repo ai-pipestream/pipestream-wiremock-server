@@ -73,9 +73,11 @@ pipestreamProtos {
 
 dependencies {
     implementation libs.wiremock.core
-    implementation("org.wiremock:wiremock-grpc-extension:1.0.0-beta.4") {
+    implementation("org.wiremock:wiremock-grpc-extension:1.0.0-beta.5") {
         exclude group: 'com.google.protobuf', module: 'protobuf-java'
     }
+    // prevent CVE
+    implementation 'io.netty:netty-codec-http:4.2.9.Final'
 
     implementation libs.slf4j.simple
     implementation libs.jboss.logging
