@@ -14,7 +14,7 @@ plugins {
     alias(libs.plugins.nmcp)
     alias(libs.plugins.shadow)
     id 'idea'
-    id 'ai.pipestream.proto-toolchain' version '0.7.12'
+    alias(libs.plugins.proto.toolchain)
 }
 
 scmVersion {
@@ -73,11 +73,11 @@ pipestreamProtos {
 
 dependencies {
     implementation libs.wiremock.core
-    implementation("org.wiremock:wiremock-grpc-extension:1.0.0-beta.5") {
+    implementation(libs.wiremock.grpc.extension) {
         exclude group: 'com.google.protobuf', module: 'protobuf-java'
     }
     // prevent CVE
-    implementation 'io.netty:netty-codec-http:4.2.9.Final'
+    implementation libs.netty.codec.http
 
     implementation libs.slf4j.simple
     implementation libs.jboss.logging
@@ -93,8 +93,8 @@ dependencies {
     compileOnly libs.javax.annotation.api
 
     // Test dependencies
-    testImplementation 'org.junit.jupiter:junit-jupiter:6.0.2'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testImplementation libs.junit.jupiter
+    testRuntimeOnly libs.junit.platform.launcher
 }
 
 // Configure source sets for proto-toolchain generated code
