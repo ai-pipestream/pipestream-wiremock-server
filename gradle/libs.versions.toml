@@ -6,7 +6,7 @@ jboss-logging = "3.6.1.Final"
 protobuf-java = "4.33.4"
 grpc = "1.78.0"
 javax-annotation = "1.3.2"
-proto-google-common-protos = "2.64.1"
+proto-google-common-protos = "2.65.0"
 netty-codec-http = "4.2.9.Final"
 junit-jupiter = "6.0.2"
 junit-platform = "1.11.4"
@@ -17,7 +17,7 @@ proto-toolchain = "0.7.12"
 axion-release = "1.21.1"
 jib = "3.5.2"
 protobuf-plugin = "0.9.6"
-nmcp = "1.4.3"
+nmcp = "1.4.4"
 
 [libraries]
 wiremock-core = { module = "org.wiremock:wiremock", version.ref = "wiremock" }
