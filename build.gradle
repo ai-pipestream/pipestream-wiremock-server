@@ -13,8 +13,8 @@ plugins {
     alias(libs.plugins.jib)
     alias(libs.plugins.nmcp)
     alias(libs.plugins.shadow)
-    id 'idea'
     alias(libs.plugins.proto.toolchain)
+    id 'idea'
 }
 
 scmVersion {
@@ -73,7 +73,7 @@ pipestreamProtos {
 
 dependencies {
     implementation libs.wiremock.core
-    implementation(libs.wiremock.grpc.extension) {
+    implementation(libs.wiremock.grpc.extension.core) {
         exclude group: 'com.google.protobuf', module: 'protobuf-java'
     }
     // prevent CVE

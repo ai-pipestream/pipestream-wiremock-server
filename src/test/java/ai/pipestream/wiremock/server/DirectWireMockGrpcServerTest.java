@@ -221,7 +221,7 @@ class DirectWireMockGrpcServerTest {
 
         // Verify mock services
         GetServiceResponse service1 = response.getServices(0);
-        assertEquals("repository-service", service1.getServiceName());
+        assertEquals("repository", service1.getServiceName());
         assertEquals("localhost", service1.getHost());
         assertEquals(8080, service1.getPort());
         assertTrue(service1.getIsHealthy());

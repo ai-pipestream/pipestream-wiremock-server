@@ -67,14 +67,14 @@ class PlatformRegistrationServiceMockTest {
 
     @Test
     void testGetService_IncludesHttpEndpoints() {
-        registrationMock.registerService("repository-service", "repo-1", "localhost", 8080,
+        registrationMock.registerService("repository", "repo-1", "localhost", 8080,
                 ai.pipestream.platform.registration.v1.ServiceType.SERVICE_TYPE_SERVICE);
 
         var response = stub.getService(GetServiceRequest.newBuilder()
-                .setServiceName("repository-service")
+                .setServiceName("repository")
                 .build());
 
-        assertEquals("repository-service", response.getServiceName());
+        assertEquals("repository", response.getServiceName());
         assertEquals(1, response.getHttpEndpointsCount());
         assertEquals("http", response.getHttpEndpoints(0).getScheme());
         assertEquals(8080, response.getHttpEndpoints(0).getPort());

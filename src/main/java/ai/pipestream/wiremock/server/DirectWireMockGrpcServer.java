@@ -417,7 +417,7 @@ public class DirectWireMockGrpcServer {
             LOG.info("DirectWireMockGrpcServer: listServices called.");
             ListServicesResponse response = ListServicesResponse.newBuilder()
                     .addServices(GetServiceResponse.newBuilder()
-                            .setServiceName("repository-service")
+                            .setServiceName("repository")
                             .setServiceId("repo-1")
                             .setHost("localhost")
                             .setPort(8080)
@@ -427,7 +427,7 @@ public class DirectWireMockGrpcServer {
                                     .setScheme("http")
                                     .setHost("localhost")
                                     .setPort(8080)
-                                    .setBasePath("/repository-service")
+                                    .setBasePath("/repository")
                                     .setHealthPath("/q/health")
                                     .setTlsEnabled(false)
                                     .build())
@@ -536,7 +536,8 @@ public class DirectWireMockGrpcServer {
 
         @Override
         public void streamAllAccounts(StreamAllAccountsRequest request, StreamObserver<StreamAllAccountsResponse> responseObserver) {
-            String query = request.getQuery() != null ? request.getQuery().trim().toLowerCase(Locale.ROOT) : "";
+            request.getQuery();
+            String query = request.getQuery().trim().toLowerCase(Locale.ROOT);
             boolean includeInactive = request.getIncludeInactive();
 
             LOG.infof("DirectWireMockGrpcServer: streamAllAccounts called query='%s' includeInactive=%s", query, includeInactive);
@@ -611,7 +612,7 @@ public class DirectWireMockGrpcServer {
                 }
                 String name = i < names.size() ? names.get(i).trim() : id;
                 String description = i < descriptions.size() ? descriptions.get(i).trim() : "";
-                boolean active = i < actives.size() ? Boolean.parseBoolean(actives.get(i).trim()) : true;
+                boolean active = i >= actives.size() || Boolean.parseBoolean(actives.get(i).trim());
 
                 accounts.add(Account.newBuilder()
                         .setAccountId(id)

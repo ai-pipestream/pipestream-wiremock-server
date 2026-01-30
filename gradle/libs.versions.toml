@@ -22,7 +22,7 @@ nmcp = "1.4.4"
 [libraries]
 wiremock-core = { module = "org.wiremock:wiremock", version.ref = "wiremock" }
 wiremock-grpc-extension-standalone = { module = "org.wiremock:wiremock-grpc-extension-standalone", version.ref = "wiremock-grpc-extension" }
-wiremock-grpc-extension = { module = "org.wiremock:wiremock-grpc-extension", version.ref = "wiremock-grpc-extension" }
+wiremock-grpc-extension-core = { module = "org.wiremock:wiremock-grpc-extension", version.ref = "wiremock-grpc-extension" }
 slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j" }
 jboss-logging = { module = "org.jboss.logging:jboss-logging", version.ref = "jboss-logging" }
 protobuf-java-core = { module = "com.google.protobuf:protobuf-java", version.ref = "protobuf-java" }
