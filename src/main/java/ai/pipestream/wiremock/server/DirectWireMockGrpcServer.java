@@ -431,7 +431,7 @@ public class DirectWireMockGrpcServer {
                                     .setHealthPath("/q/health")
                                     .setTlsEnabled(false)
                                     .build())
-                            .setHttpSchemaArtifactId("repository-service-http-schema")
+                            .setHttpSchemaArtifactId("repository-http-schema")
                             .setHttpSchemaVersion("1.0.0")
                             .build())
                     .addServices(GetServiceResponse.newBuilder()

@@ -78,7 +78,7 @@ class PlatformRegistrationServiceMockTest {
         assertEquals(1, response.getHttpEndpointsCount());
         assertEquals("http", response.getHttpEndpoints(0).getScheme());
         assertEquals(8080, response.getHttpEndpoints(0).getPort());
-        assertEquals("repository-service-http-schema", response.getHttpSchemaArtifactId());
+        assertEquals("repository-http-schema", response.getHttpSchemaArtifactId());
         assertEquals("1.0.0", response.getHttpSchemaVersion());
     }
 }
