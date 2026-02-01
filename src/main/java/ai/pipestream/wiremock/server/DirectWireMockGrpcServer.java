@@ -40,6 +40,10 @@ import ai.pipestream.repository.account.v1.GetAccountResponse;
 import ai.pipestream.repository.account.v1.StreamAllAccountsRequest;
 import ai.pipestream.repository.account.v1.StreamAllAccountsResponse;
 import ai.pipestream.wiremock.client.MockConfig;
+import ai.pipestream.opensearch.v1.OpenSearchManagerServiceGrpc;
+import ai.pipestream.schemamanager.v1.EnsureNestedEmbeddingsFieldExistsRequest;
+import ai.pipestream.schemamanager.v1.EnsureNestedEmbeddingsFieldExistsResponse;
+
 import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -137,6 +141,7 @@ public class DirectWireMockGrpcServer {
                 .addService(new PlatformRegistrationServiceImpl())
                 .addService(new NodeUploadServiceImpl())
                 .addService(new AccountServiceStreamingImpl())
+                .addService(new OpenSearchManagerServiceImpl())
                 .addService(ProtoReflectionServiceV1.newInstance())
                 .build();
     }
@@ -513,6 +518,24 @@ public class DirectWireMockGrpcServer {
             responseObserver.onNext(response);
             responseObserver.onCompleted();
             LOG.info("DirectWireMockGrpcServer: unregister completed for " + name);
+        }
+    }
+
+    /**
+     * Mock implementation of OpenSearchManagerService for module-opensearch-sink and similar tests.
+     * EnsureNestedEmbeddingsFieldExists returns success. When OPENSEARCH_HOSTS is set, the mock
+     * creates the index in OpenSearch; otherwise it just returns success (sink fallback will create).
+     */
+    private static class OpenSearchManagerServiceImpl extends OpenSearchManagerServiceGrpc.OpenSearchManagerServiceImplBase {
+        @Override
+        public void ensureNestedEmbeddingsFieldExists(EnsureNestedEmbeddingsFieldExistsRequest request,
+                StreamObserver<EnsureNestedEmbeddingsFieldExistsResponse> responseObserver) {
+            LOG.infof("DirectWireMockGrpcServer: ensureNestedEmbeddingsFieldExists index=%s field=%s",
+                    request.getIndexName(), request.getNestedFieldName());
+            responseObserver.onNext(EnsureNestedEmbeddingsFieldExistsResponse.newBuilder()
+                    .setSchemaExisted(false)
+                    .build());
+            responseObserver.onCompleted();
         }
     }
 
