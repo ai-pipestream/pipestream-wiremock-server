@@ -94,6 +94,7 @@ dependencies {
 
     // OpenSearch Java client for OpenSearchManagerService mock (creates indices when OPENSEARCH_HOSTS set)
     implementation libs.opensearch.java
+    implementation libs.httpclient5
 
     // Test dependencies
     testImplementation libs.junit.jupiter

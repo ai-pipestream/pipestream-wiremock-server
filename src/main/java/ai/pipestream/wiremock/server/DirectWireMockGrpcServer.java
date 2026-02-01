@@ -43,8 +43,22 @@ import ai.pipestream.wiremock.client.MockConfig;
 import ai.pipestream.opensearch.v1.OpenSearchManagerServiceGrpc;
 import ai.pipestream.schemamanager.v1.EnsureNestedEmbeddingsFieldExistsRequest;
 import ai.pipestream.schemamanager.v1.EnsureNestedEmbeddingsFieldExistsResponse;
+import ai.pipestream.schemamanager.v1.VectorFieldDefinition;
+import org.apache.hc.core5.http.HttpHost;
+import org.opensearch.client.json.jackson.JacksonJsonpMapper;
+import org.opensearch.client.opensearch.OpenSearchClient;
+import org.opensearch.client.opensearch._types.mapping.KnnVectorProperty;
+import org.opensearch.client.opensearch._types.mapping.NestedProperty;
+import org.opensearch.client.opensearch._types.mapping.Property;
+import org.opensearch.client.opensearch._types.mapping.TextProperty;
+import org.opensearch.client.opensearch._types.mapping.TypeMapping;
+import org.opensearch.client.opensearch.indices.CreateIndexRequest;
+import org.opensearch.client.opensearch.indices.IndexSettings;
+import org.opensearch.client.transport.httpclient5.ApacheHttpClient5TransportBuilder;
 
 import java.io.IOException;
+import java.net.URI;
+import java.util.Map;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -523,19 +537,113 @@ public class DirectWireMockGrpcServer {
 
     /**
      * Mock implementation of OpenSearchManagerService for module-opensearch-sink and similar tests.
-     * EnsureNestedEmbeddingsFieldExists returns success. When OPENSEARCH_HOSTS is set, the mock
-     * creates the index in OpenSearch; otherwise it just returns success (sink fallback will create).
+     * When OPENSEARCH_HOSTS is set, creates the index in OpenSearch with the nested embeddings mapping.
+     * Otherwise returns success (sink fallback will create).
      */
     private static class OpenSearchManagerServiceImpl extends OpenSearchManagerServiceGrpc.OpenSearchManagerServiceImplBase {
+        private static final String NESTED_FIELD = "embeddings";
+
         @Override
         public void ensureNestedEmbeddingsFieldExists(EnsureNestedEmbeddingsFieldExistsRequest request,
                 StreamObserver<EnsureNestedEmbeddingsFieldExistsResponse> responseObserver) {
             LOG.infof("DirectWireMockGrpcServer: ensureNestedEmbeddingsFieldExists index=%s field=%s",
                     request.getIndexName(), request.getNestedFieldName());
-            responseObserver.onNext(EnsureNestedEmbeddingsFieldExistsResponse.newBuilder()
-                    .setSchemaExisted(false)
-                    .build());
+            try {
+                createIndexIfNeeded(request);
+                responseObserver.onNext(EnsureNestedEmbeddingsFieldExistsResponse.newBuilder()
+                        .setSchemaExisted(false)
+                        .build());
+            } catch (Exception e) {
+                LOG.errorf(e, "Failed to ensure nested embeddings field for %s", request.getIndexName());
+                responseObserver.onError(io.grpc.Status.INTERNAL.withCause(e).withDescription(e.getMessage()).asRuntimeException());
+                return;
+            }
             responseObserver.onCompleted();
+        }
+
+        private void createIndexIfNeeded(EnsureNestedEmbeddingsFieldExistsRequest request) throws IOException {
+            String hosts = System.getenv("OPENSEARCH_HOSTS");
+            if (hosts == null || hosts.isBlank()) {
+                return;
+            }
+            int dim = resolveDimension(request);
+            if (dim <= 0) {
+                dim = defaultDimension();
+            }
+            final int dimension = dim;
+            String indexName = request.getIndexName();
+            String fieldName = request.getNestedFieldName().isBlank() ? NESTED_FIELD : request.getNestedFieldName();
+
+            HttpHost[] httpHosts = parseHttpHosts(hosts);
+            var transport = ApacheHttpClient5TransportBuilder.builder(httpHosts)
+                    .setMapper(new JacksonJsonpMapper())
+                    .build();
+            OpenSearchClient client = new OpenSearchClient(transport);
+
+            boolean exists = client.indices().exists(e -> e.index(indexName)).value();
+            if (exists) {
+                return;
+            }
+
+            KnnVectorProperty knnVector = KnnVectorProperty.of(k -> k.dimension(dimension));
+            TypeMapping mapping = new TypeMapping.Builder()
+                    .properties(fieldName, Property.of(p -> p
+                            .nested(NestedProperty.of(n -> n
+                                    .properties(Map.of(
+                                            "vector", Property.of(v -> v.knnVector(knnVector)),
+                                            "source_text", Property.of(t -> t.text(TextProperty.of(x -> x))),
+                                            "context_text", Property.of(t -> t.text(TextProperty.of(x -> x))),
+                                            "chunk_config_id", Property.of(kk -> kk.keyword(x -> x)),
+                                            "embedding_id", Property.of(kk -> kk.keyword(x -> x)),
+                                            "is_primary", Property.of(b -> b.boolean_(x -> x))
+                                    ))
+                            ))
+                    ))
+                    .build();
+
+            IndexSettings settings = new IndexSettings.Builder().knn(true).build();
+            CreateIndexRequest createRequest = new CreateIndexRequest.Builder()
+                    .index(indexName)
+                    .settings(settings)
+                    .mappings(mapping)
+                    .build();
+
+            client.indices().create(createRequest);
+            LOG.infof("DirectWireMockGrpcServer: created index %s with %s (dim=%d)", indexName, fieldName, dimension);
+        }
+
+        private int resolveDimension(EnsureNestedEmbeddingsFieldExistsRequest request) {
+            if (request.hasVectorFieldDefinition()) {
+                VectorFieldDefinition vfd = request.getVectorFieldDefinition();
+                if (vfd.getDimension() > 0) {
+                    return vfd.getDimension();
+                }
+            }
+            return 0;
+        }
+
+        private int defaultDimension() {
+            String dim = System.getenv("WIREMOCK_OPENSEARCH_DEFAULT_DIMENSION");
+            if (dim != null && !dim.isBlank()) {
+                try {
+                    return Integer.parseInt(dim.trim());
+                } catch (NumberFormatException ignored) {
+                }
+            }
+            return 384;
+        }
+
+        private HttpHost[] parseHttpHosts(String hosts) {
+            String[] parts = hosts.split(",");
+            HttpHost[] result = new HttpHost[parts.length];
+            for (int i = 0; i < parts.length; i++) {
+                String s = parts[i].trim();
+                URI uri = URI.create(s.startsWith("http") ? s : "http://" + s);
+                String scheme = uri.getScheme() != null ? uri.getScheme() : "http";
+                int port = uri.getPort() > 0 ? uri.getPort() : 9200;
+                result[i] = new HttpHost(scheme, uri.getHost(), port);
+            }
+            return result;
         }
     }
 

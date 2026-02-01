@@ -1,5 +1,6 @@
 ai.pipestream.wiremock.client.AccountManagerMock
 ai.pipestream.wiremock.client.DataSourceAdminMock
+ai.pipestream.wiremock.client.EmbeddingConfigServiceMock
 ai.pipestream.wiremock.client.PipeStepProcessorMock
 ai.pipestream.wiremock.client.PlatformRegistrationServiceMock
 ai.pipestream.wiremock.client.FilesystemServiceMock

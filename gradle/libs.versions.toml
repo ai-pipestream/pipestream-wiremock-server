@@ -2,6 +2,7 @@
 wiremock = "4.0.0-beta.26"
 opensearch = "3.5.0"
 wiremock-grpc-extension = "1.0.0-beta.5"
+httpclient5 = "5.6"
 slf4j = "2.0.17"
 jboss-logging = "3.6.1.Final"
 protobuf-java = "4.33.4"
@@ -37,6 +38,7 @@ proto-google-common-protos = { module = "com.google.api.grpc:proto-google-common
 netty-codec-http = { module = "io.netty:netty-codec-http", version.ref = "netty-codec-http" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit-jupiter" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junit-platform" }
+httpclient5 = { module = "org.apache.httpcomponents.client5:httpclient5", version.ref = "httpclient5" }
 opensearch-java = { module = "org.opensearch.client:opensearch-java", version.ref = "opensearch" }
 
 [plugins]
