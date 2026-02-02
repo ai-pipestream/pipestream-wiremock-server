@@ -13,7 +13,7 @@ netty-codec-http = "4.2.9.Final"
 junit-jupiter = "6.0.2"
 junit-platform = "1.11.4"
 shadow = "9.3.1"
-proto-toolchain = "0.7.12"
+proto-toolchain = "0.7.14"
 
 # Plugins
 axion-release = "1.21.1"
