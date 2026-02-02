@@ -11,7 +11,7 @@ javax-annotation = "1.3.2"
 proto-google-common-protos = "2.65.0"
 netty-codec-http = "4.2.9.Final"
 junit-jupiter = "6.0.2"
-junit-platform = "1.11.4"
+junit-platform = "6.0.2"
 shadow = "9.3.1"
 proto-toolchain = "0.7.12"
 
