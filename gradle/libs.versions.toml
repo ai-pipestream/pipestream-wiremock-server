@@ -17,7 +17,7 @@ proto-toolchain = "0.7.15"
 
 # Plugins
 axion-release = "1.21.1"
-jib = "3.5.2"
+jib = "3.5.3"
 protobuf-plugin = "0.9.6"
 nmcp = "1.4.4"
 
