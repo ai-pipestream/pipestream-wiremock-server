@@ -231,7 +231,7 @@ class DirectWireMockGrpcServerTest {
         GetServiceResponse service2 = response.getServices(1);
         assertEquals("account-manager", service2.getServiceName());
         assertEquals("localhost", service2.getHost());
-        assertEquals(38105, service2.getPort());
+        assertEquals(18105, service2.getPort());
         assertTrue(service2.getIsHealthy());
         assertEquals(1, service2.getHttpEndpointsCount());
         assertEquals("account-manager-http-schema", service2.getHttpSchemaArtifactId());
