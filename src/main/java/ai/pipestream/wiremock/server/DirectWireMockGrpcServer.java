@@ -298,14 +298,22 @@ public class DirectWireMockGrpcServer {
             try {
                 String hosts = System.getenv("OPENSEARCH_HOSTS");
                 if (hosts != null && !hosts.isBlank()) {
-                    // Use preservingProtoFieldNames to match OpenSearch mappings exactly (snake_case)
+                    // Ensure mapping for any semantic sets in the document
+                    for (SemanticVectorSet vset : request.getDocument().getSemanticSetsList()) {
+                        String fieldName = "vs_" + String.format("%s_%s_%s", 
+                            vset.getSourceFieldName(), vset.getChunkConfigId(), vset.getEmbeddingId())
+                            .replaceAll("[^a-zA-Z0-9_]", "_");
+                        
+                        int dimension = vset.getEmbeddingsCount() > 0 ? vset.getEmbeddings(0).getVectorCount() : 384;
+                        createIndexWithMapping(request.getIndexName(), fieldName, dimension, hosts);
+                    }
+
                     String jsonDoc = JsonFormat.printer()
                             .preservingProtoFieldNames()
                             .includingDefaultValueFields()
                             .print(request.getDocument());
                     
                     indexToOpenSearch(request.getIndexName(), request.getDocumentId(), jsonDoc, request.getRouting(), hosts);
-                    LOG.infof("DirectWireMockGrpcServer: successfully proxied document %s to OpenSearch", request.getDocumentId());
                 }
                 
                 responseObserver.onNext(IndexDocumentResponse.newBuilder()
@@ -325,10 +333,7 @@ public class DirectWireMockGrpcServer {
 
         @Override
         public void indexAnyDocument(IndexAnyDocumentRequest request, StreamObserver<IndexAnyDocumentResponse> responseObserver) {
-            responseObserver.onNext(IndexAnyDocumentResponse.newBuilder()
-                    .setSuccess(true)
-                    .setMessage("AnyDocument received by WireMock")
-                    .build());
+            responseObserver.onNext(IndexAnyDocumentResponse.newBuilder().setSuccess(true).setMessage("AnyDocument received by WireMock").build());
             responseObserver.onCompleted();
         }
 
@@ -351,7 +356,7 @@ public class DirectWireMockGrpcServer {
         }
 
         @Override
-        public void ensureNestedEmbeddingsFieldExists(ai.pipestream.schemamanager.v1.EnsureNestedEmbeddingsFieldExistsRequest request,
+        public void ensureNestedEmbeddingsFieldExists(EnsureNestedEmbeddingsFieldExistsRequest request,
                 StreamObserver<EnsureNestedEmbeddingsFieldExistsResponse> responseObserver) {
             responseObserver.onNext(EnsureNestedEmbeddingsFieldExistsResponse.newBuilder().setSchemaExisted(false).build());
             responseObserver.onCompleted();
@@ -369,6 +374,21 @@ public class DirectWireMockGrpcServer {
                 if (routing != null && !routing.isBlank()) i.routing(routing);
                 return i;
             });
+        }
+
+        private void createIndexWithMapping(String indexName, String fieldName, int dimension, String hosts) throws IOException {
+            HttpHost[] httpHosts = parseHttpHosts(hosts);
+            var transport = ApacheHttpClient5TransportBuilder.builder(httpHosts).setMapper(new JacksonJsonpMapper()).build();
+            OpenSearchClient client = new OpenSearchClient(transport);
+
+            if (!client.indices().exists(e -> e.index(indexName)).value()) {
+                KnnVectorProperty knnVector = KnnVectorProperty.of(k -> k.dimension(dimension));
+                TypeMapping mapping = new TypeMapping.Builder()
+                        .properties(fieldName, Property.of(p -> p.nested(NestedProperty.of(n -> n.properties(Map.of("vector", Property.of(v -> v.knnVector(knnVector))))))))
+                        .build();
+                client.indices().create(c -> c.index(indexName).settings(s -> s.knn(true)).mappings(mapping));
+                LOG.infof("DirectWireMockGrpcServer: created index %s with nested field %s (dim=%d)", indexName, fieldName, dimension);
+            }
         }
 
         private HttpHost[] parseHttpHosts(String hosts) {
@@ -392,7 +412,7 @@ public class DirectWireMockGrpcServer {
         }
 
         @Override
-        public void streamAllAccounts(ai.pipestream.repository.account.v1.StreamAllAccountsRequest request, StreamObserver<ai.pipestream.repository.account.v1.StreamAllAccountsResponse> responseObserver) {
+        public void streamAllAccounts(StreamAllAccountsRequest request, StreamObserver<ai.pipestream.repository.account.v1.StreamAllAccountsResponse> responseObserver) {
             boolean includeInactive = request.getIncludeInactive();
             Timestamp ts = Timestamp.newBuilder().setSeconds(Instant.now().getEpochSecond()).build();
 
