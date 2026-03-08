@@ -64,7 +64,7 @@ class OpenSearchManagerHighFidelityTest {
 
         assertNotNull(response);
         assertTrue(response.getSuccess());
-        assertTrue(response.getMessage().contains("Smart Proxy"));
+        assertTrue(response.getMessage().contains("High-Fidelity"));
     }
 
     @Test

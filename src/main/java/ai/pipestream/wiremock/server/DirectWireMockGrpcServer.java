@@ -6,26 +6,16 @@ import io.grpc.protobuf.services.ProtoReflectionServiceV1;
 import io.grpc.stub.StreamObserver;
 import ai.pipestream.platform.registration.v1.*;
 import com.google.protobuf.Timestamp;
-import com.google.protobuf.util.JsonFormat;
 import org.jboss.logging.Logger;
 
 import ai.pipestream.repository.filesystem.upload.v1.*;
 import ai.pipestream.repository.account.v1.*;
-import ai.pipestream.wiremock.client.MockConfig;
 import ai.pipestream.opensearch.v1.*;
-import org.apache.hc.core5.http.HttpHost;
-import org.opensearch.client.json.jackson.JacksonJsonpMapper;
-import org.opensearch.client.opensearch.OpenSearchClient;
-import org.opensearch.client.opensearch._types.mapping.*;
-import org.opensearch.client.transport.httpclient5.ApacheHttpClient5TransportBuilder;
+import ai.pipestream.schemamanager.v1.EnsureNestedEmbeddingsFieldExistsRequest;
+import ai.pipestream.schemamanager.v1.EnsureNestedEmbeddingsFieldExistsResponse;
 
 import java.io.IOException;
-import java.net.URI;
-import java.util.Map;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -318,10 +308,11 @@ public class DirectWireMockGrpcServer {
     }
 
     private static class OpenSearchManagerServiceImpl extends OpenSearchManagerServiceGrpc.OpenSearchManagerServiceImplBase {
-        private static final String NESTED_FIELD = "embeddings";
 
         @Override
-        public void indexDocument(ai.pipestream.opensearch.v1.IndexDocumentRequest request, StreamObserver<ai.pipestream.opensearch.v1.IndexDocumentResponse> responseObserver) {
+        public void indexDocument(IndexDocumentRequest request, StreamObserver<IndexDocumentResponse> responseObserver) {
+            LOG.infof("DirectWireMockGrpcServer: indexDocument index=%s id=%s", request.getIndexName(), request.getDocumentId());
+            
             // Handle forced failure scenarios
             String scenario = TEST_SCENARIO_KEY.get();
             if ("force-error".equals(scenario) || "fail-this-doc".equals(request.getDocumentId()) || "fail-this-index".equals(request.getIndexName())) {
@@ -329,138 +320,71 @@ public class DirectWireMockGrpcServer {
                 return;
             }
 
-            try {
-                String hosts = System.getenv("OPENSEARCH_HOSTS");
-                if (hosts != null && !hosts.isBlank()) {
-                    ensureBaseMapping(request.getIndexName(), hosts);
-                    String jsonDoc = JsonFormat.printer()
-                            .preservingProtoFieldNames()
-                            .includingDefaultValueFields()
-                            .print(request.getDocument());
-                    
-                    indexToOpenSearch(request.getIndexName(), request.getDocumentId(), jsonDoc, request.getRouting(), hosts);
-                }
-                
-                responseObserver.onNext(ai.pipestream.opensearch.v1.IndexDocumentResponse.newBuilder()
-                        .setSuccess(true)
-                        .setDocumentId(request.getDocumentId())
-                        .setMessage("Indexed via WireMock Smart Proxy")
-                        .build());
-            } catch (Exception e) {
-                LOG.errorf(e, "Failed to index document in WireMock Proxy: %s", e.getMessage());
-                responseObserver.onNext(ai.pipestream.opensearch.v1.IndexDocumentResponse.newBuilder()
-                        .setSuccess(false)
-                        .setMessage("Mock Proxy Error: " + e.getMessage())
-                        .build());
+            // High-fidelity contract validation
+            if (!request.hasDocument()) {
+                responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Request missing document").asRuntimeException());
+                return;
             }
-            responseObserver.onCompleted();
-        }
 
-        @Override
-        public void indexAnyDocument(ai.pipestream.opensearch.v1.IndexAnyDocumentRequest request, StreamObserver<ai.pipestream.opensearch.v1.IndexAnyDocumentResponse> responseObserver) {
-            responseObserver.onNext(ai.pipestream.opensearch.v1.IndexAnyDocumentResponse.newBuilder()
+            if (request.getDocument().getOriginalDocId().isBlank() && request.getDocumentId().isBlank()) {
+                responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Request missing document ID").asRuntimeException());
+                return;
+            }
+
+            // Validate structured data
+            for (SemanticVectorSet set : request.getDocument().getSemanticSetsList()) {
+                if (set.getEmbeddingsCount() > 0) {
+                    for (OpenSearchEmbedding emb : set.getEmbeddingsList()) {
+                        if (emb.getVectorCount() == 0) {
+                            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Embedding missing vector floats").asRuntimeException());
+                            return;
+                        }
+                    }
+                }
+            }
+
+            responseObserver.onNext(IndexDocumentResponse.newBuilder()
                     .setSuccess(true)
-                    .setMessage("AnyDocument received by WireMock")
+                    .setDocumentId(request.getDocumentId().isBlank() ? request.getDocument().getOriginalDocId() : request.getDocumentId())
+                    .setMessage("Indexed via WireMock High-Fidelity Mock")
                     .build());
             responseObserver.onCompleted();
         }
 
         @Override
-        public void createIndex(ai.pipestream.opensearch.v1.CreateIndexRequest request, StreamObserver<ai.pipestream.opensearch.v1.CreateIndexResponse> responseObserver) {
-            responseObserver.onNext(ai.pipestream.opensearch.v1.CreateIndexResponse.newBuilder().setSuccess(true).build());
+        public void indexAnyDocument(IndexAnyDocumentRequest request, StreamObserver<IndexAnyDocumentResponse> responseObserver) {
+            responseObserver.onNext(IndexAnyDocumentResponse.newBuilder()
+                    .setSuccess(true)
+                    .setMessage("AnyDocument received by WireMock High-Fidelity Mock")
+                    .build());
             responseObserver.onCompleted();
         }
 
         @Override
-        public void indexExists(ai.pipestream.opensearch.v1.IndexExistsRequest request, StreamObserver<ai.pipestream.opensearch.v1.IndexExistsResponse> responseObserver) {
-            responseObserver.onNext(ai.pipestream.opensearch.v1.IndexExistsResponse.newBuilder().setExists(true).build());
+        public void createIndex(CreateIndexRequest request, StreamObserver<CreateIndexResponse> responseObserver) {
+            responseObserver.onNext(CreateIndexResponse.newBuilder().setSuccess(true).build());
             responseObserver.onCompleted();
         }
 
         @Override
-        public void searchFilesystemMeta(ai.pipestream.opensearch.v1.SearchFilesystemMetaRequest request, StreamObserver<ai.pipestream.opensearch.v1.SearchFilesystemMetaResponse> responseObserver) {
-            responseObserver.onNext(ai.pipestream.opensearch.v1.SearchFilesystemMetaResponse.newBuilder().build());
+        public void indexExists(IndexExistsRequest request, StreamObserver<IndexExistsResponse> responseObserver) {
+            responseObserver.onNext(IndexExistsResponse.newBuilder().setExists(true).build());
+            responseObserver.onCompleted();
+        }
+
+        @Override
+        public void searchFilesystemMeta(SearchFilesystemMetaRequest request, StreamObserver<SearchFilesystemMetaResponse> responseObserver) {
+            responseObserver.onNext(SearchFilesystemMetaResponse.newBuilder().build());
             responseObserver.onCompleted();
         }
 
         @Override
         public void ensureNestedEmbeddingsFieldExists(ai.pipestream.schemamanager.v1.EnsureNestedEmbeddingsFieldExistsRequest request,
                 StreamObserver<ai.pipestream.schemamanager.v1.EnsureNestedEmbeddingsFieldExistsResponse> responseObserver) {
-            try {
-                createIndexIfNeeded(request);
-                responseObserver.onNext(ai.pipestream.schemamanager.v1.EnsureNestedEmbeddingsFieldExistsResponse.newBuilder()
-                        .setSchemaExisted(false)
-                        .build());
-            } catch (Exception e) {
-                responseObserver.onError(Status.INTERNAL.withCause(e).withDescription(e.getMessage()).asRuntimeException());
-                return;
-            }
+            responseObserver.onNext(ai.pipestream.schemamanager.v1.EnsureNestedEmbeddingsFieldExistsResponse.newBuilder()
+                    .setSchemaExisted(false)
+                    .build());
             responseObserver.onCompleted();
-        }
-
-        private void indexToOpenSearch(String index, String id, String json, String routing, String hosts) throws IOException {
-            HttpHost[] httpHosts = parseHttpHosts(hosts);
-            var transport = ApacheHttpClient5TransportBuilder.builder(httpHosts)
-                    .setMapper(new JacksonJsonpMapper())
-                    .build();
-            OpenSearchClient client = new OpenSearchClient(transport);
-            client.index(i -> {
-                i.index(index).document(json);
-                if (id != null && !id.isBlank()) i.id(id);
-                if (routing != null && !routing.isBlank()) i.routing(routing);
-                return i;
-            });
-        }
-
-        private void ensureBaseMapping(String indexName, String hosts) throws IOException {
-            HttpHost[] httpHosts = parseHttpHosts(hosts);
-            var transport = ApacheHttpClient5TransportBuilder.builder(httpHosts).setMapper(new JacksonJsonpMapper()).build();
-            OpenSearchClient client = new OpenSearchClient(transport);
-
-            if (!client.indices().exists(e -> e.index(indexName)).value()) {
-                client.indices().create(c -> c
-                    .index(indexName)
-                    .settings(s -> s.knn(true))
-                    .mappings(m -> m
-                        .properties("semantic_sets", p -> p.nested(n -> n))
-                        .properties("custom_fields", p -> p.object(o -> o))
-                    )
-                );
-            }
-        }
-
-        private void createIndexIfNeeded(ai.pipestream.schemamanager.v1.EnsureNestedEmbeddingsFieldExistsRequest request) throws IOException {
-            String hosts = System.getenv("OPENSEARCH_HOSTS");
-            if (hosts == null || hosts.isBlank()) return;
-            HttpHost[] httpHosts = parseHttpHosts(hosts);
-            var transport = ApacheHttpClient5TransportBuilder.builder(httpHosts).setMapper(new JacksonJsonpMapper()).build();
-            OpenSearchClient client = new OpenSearchClient(transport);
-            if (!client.indices().exists(e -> e.index(request.getIndexName())).value()) {
-                int dimension = request.hasVectorFieldDefinition() ? request.getVectorFieldDefinition().getDimension() : 384;
-                KnnVectorProperty knnVector = KnnVectorProperty.of(k -> k.dimension(dimension));
-                TypeMapping mapping = new TypeMapping.Builder()
-                        .properties(request.getNestedFieldName().isBlank() ? NESTED_FIELD : request.getNestedFieldName(), 
-                                Property.of(p -> p.nested(NestedProperty.of(n -> n.properties(Map.of("vector", Property.of(v -> v.knnVector(knnVector))))))))
-                        .build();
-                org.opensearch.client.opensearch.indices.IndexSettings osSettings = new org.opensearch.client.opensearch.indices.IndexSettings.Builder().knn(true).build();
-                org.opensearch.client.opensearch.indices.CreateIndexRequest osRequest = new org.opensearch.client.opensearch.indices.CreateIndexRequest.Builder()
-                        .index(request.getIndexName())
-                        .settings(osSettings)
-                        .mappings(mapping)
-                        .build();
-                client.indices().create(osRequest);
-            }
-        }
-
-        private HttpHost[] parseHttpHosts(String hosts) {
-            String[] parts = hosts.split(",");
-            HttpHost[] result = new HttpHost[parts.length];
-            for (int i = 0; i < parts.length; i++) {
-                String s = parts[i].trim();
-                URI uri = URI.create(s.startsWith("http") ? s : "http://" + s);
-                result[i] = new HttpHost(uri.getScheme() != null ? uri.getScheme() : "http", uri.getHost(), uri.getPort() > 0 ? uri.getPort() : 9200);
-            }
-            return result;
         }
     }
 

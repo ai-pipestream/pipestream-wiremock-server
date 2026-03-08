@@ -92,11 +92,8 @@ dependencies {
     implementation libs.grpc.services
     compileOnly libs.javax.annotation.api
 
-    // OpenSearch Java client for OpenSearchManagerService mock (creates indices when OPENSEARCH_HOSTS set)
-    implementation libs.opensearch.java
-    implementation libs.httpclient5
-
     // Test dependencies
+
     testImplementation libs.junit.jupiter
     testRuntimeOnly libs.junit.platform.launcher
 }

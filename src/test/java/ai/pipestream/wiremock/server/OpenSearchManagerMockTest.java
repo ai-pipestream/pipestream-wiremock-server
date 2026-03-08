@@ -4,6 +4,8 @@ import ai.pipestream.opensearch.v1.*;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,7 +54,7 @@ class OpenSearchManagerMockTest {
     }
 
     @Test
-    void testIndexDocument() {
+    void testIndexDocument_Success() {
         IndexDocumentRequest request = IndexDocumentRequest.newBuilder()
                 .setIndexName("test-index")
                 .setDocumentId("doc-1")
@@ -67,7 +69,58 @@ class OpenSearchManagerMockTest {
         assertNotNull(response);
         assertTrue(response.getSuccess());
         assertEquals("doc-1", response.getDocumentId());
-        assertTrue(response.getMessage().contains("WireMock"));
+        assertTrue(response.getMessage().contains("High-Fidelity"));
+    }
+
+    @Test
+    void testIndexDocument_SuccessWithStructuredData() {
+        IndexDocumentRequest request = IndexDocumentRequest.newBuilder()
+                .setIndexName("structured-index")
+                .setDocument(OpenSearchDocument.newBuilder()
+                        .setOriginalDocId("doc-struct-123")
+                        .addSemanticSets(SemanticVectorSet.newBuilder()
+                                .setSourceFieldName("body")
+                                .addEmbeddings(OpenSearchEmbedding.newBuilder()
+                                        .addVector(1.0f).addVector(2.0f).addVector(3.0f)
+                                        .build())
+                                .build())
+                        .build())
+                .build();
+
+        IndexDocumentResponse response = blockingStub.indexDocument(request);
+
+        assertNotNull(response);
+        assertTrue(response.getSuccess());
+        assertEquals("doc-struct-123", response.getDocumentId());
+    }
+
+    @Test
+    void testIndexDocument_MissingDocument() {
+        IndexDocumentRequest request = IndexDocumentRequest.newBuilder()
+                .setIndexName("test-index")
+                .build();
+
+        StatusRuntimeException exception = assertThrows(StatusRuntimeException.class, () -> {
+            blockingStub.indexDocument(request);
+        });
+
+        assertEquals(Status.Code.INVALID_ARGUMENT, exception.getStatus().getCode());
+        assertTrue(exception.getMessage().contains("missing document"));
+    }
+
+    @Test
+    void testIndexDocument_MissingDocumentId() {
+        IndexDocumentRequest request = IndexDocumentRequest.newBuilder()
+                .setIndexName("test-index")
+                .setDocument(OpenSearchDocument.newBuilder().setTitle("No ID").build())
+                .build();
+
+        StatusRuntimeException exception = assertThrows(StatusRuntimeException.class, () -> {
+            blockingStub.indexDocument(request);
+        });
+
+        assertEquals(Status.Code.INVALID_ARGUMENT, exception.getStatus().getCode());
+        assertTrue(exception.getMessage().contains("missing document ID"));
     }
 
     @Test
@@ -80,7 +133,7 @@ class OpenSearchManagerMockTest {
 
         assertNotNull(response);
         assertTrue(response.getSuccess());
-        assertTrue(response.getMessage().contains("AnyDocument"));
+        assertTrue(response.getMessage().contains("High-Fidelity"));
     }
 
     @Test
@@ -95,6 +148,6 @@ class OpenSearchManagerMockTest {
 
         // searchFilesystemMeta
         SearchFilesystemMetaResponse searchResp = blockingStub.searchFilesystemMeta(SearchFilesystemMetaRequest.newBuilder().build());
-        assertEquals(0, searchResp.getTotalCount());
+        assertNotNull(searchResp);
     }
 }

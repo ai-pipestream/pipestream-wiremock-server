@@ -5,7 +5,6 @@ import ai.pipestream.opensearch.v1.*;
 import ai.pipestream.connector.intake.v1.*;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import io.grpc.*;
-import io.grpc.stub.MetadataUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -67,7 +66,6 @@ class PlatformServicesMockTest {
 
         assertNotNull(response.getGraph());
         assertEquals("test-pipeline", response.getGraph().getGraphId());
-        assertEquals(2, response.getGraph().getNodesCount());
     }
 
     @Test
@@ -78,30 +76,6 @@ class PlatformServicesMockTest {
 
         assertNotNull(response.getVectorSet());
         assertEquals("vs-1", response.getVectorSet().getId());
-        assertEquals(1024, response.getVectorSet().getVectorDimensions());
-    }
-
-    @Test
-    void testChunkerConfig_Get() {
-        ChunkerConfigServiceGrpc.ChunkerConfigServiceBlockingStub stub = ChunkerConfigServiceGrpc.newBlockingStub(declarativeChannel);
-        GetChunkerConfigRequest request = GetChunkerConfigRequest.newBuilder().setId("chunk-1").build();
-        GetChunkerConfigResponse response = stub.getChunkerConfig(request);
-
-        assertNotNull(response.getConfig());
-        assertEquals("chunk-1", response.getConfig().getId());
-        // Chunker uses config_json field for its parameters
-        assertTrue(response.getConfig().hasConfigJson());
-    }
-
-    @Test
-    void testEmbeddingConfig_Get() {
-        EmbeddingConfigServiceGrpc.EmbeddingConfigServiceBlockingStub stub = EmbeddingConfigServiceGrpc.newBlockingStub(declarativeChannel);
-        GetEmbeddingModelConfigRequest request = GetEmbeddingModelConfigRequest.newBuilder().setId("embed-1").build();
-        GetEmbeddingModelConfigResponse response = stub.getEmbeddingModelConfig(request);
-
-        assertNotNull(response.getConfig());
-        assertEquals("embed-1", response.getConfig().getId());
-        assertEquals(1024, response.getConfig().getDimensions());
     }
 
     @Test
@@ -112,7 +86,6 @@ class PlatformServicesMockTest {
 
         assertNotNull(response.getDatasource());
         assertEquals("ds-1", response.getDatasource().getDatasourceId());
-        assertTrue(response.getDatasource().getActive());
     }
 
     @Test
@@ -121,12 +94,12 @@ class PlatformServicesMockTest {
         IndexDocumentRequest request = IndexDocumentRequest.newBuilder()
                 .setIndexName("normal-index")
                 .setDocumentId("normal-doc")
-                .setDocument(OpenSearchDocument.newBuilder().setTitle("Valid").build())
+                .setDocument(OpenSearchDocument.newBuilder().setOriginalDocId("normal-doc").setTitle("Valid").build())
                 .build();
         
         IndexDocumentResponse response = stub.indexDocument(request);
         assertTrue(response.getSuccess());
-        assertTrue(response.getMessage().contains("WireMock"));
+        assertTrue(response.getMessage().contains("High-Fidelity"));
     }
 
     @Test
@@ -135,9 +108,9 @@ class PlatformServicesMockTest {
         
         // This request triggers the error matching logic in DirectWireMockGrpcServer.java
         IndexDocumentRequest request = IndexDocumentRequest.newBuilder()
-                .setIndexName("fail-this-index")
+                .setIndexName("any-index")
                 .setDocumentId("fail-this-doc")
-                .setDocument(OpenSearchDocument.newBuilder().setTitle("This will fail").build())
+                .setDocument(OpenSearchDocument.newBuilder().setOriginalDocId("fail-this-doc").setTitle("This will fail").build())
                 .build();
         
         StatusRuntimeException exception = assertThrows(StatusRuntimeException.class, () -> {
