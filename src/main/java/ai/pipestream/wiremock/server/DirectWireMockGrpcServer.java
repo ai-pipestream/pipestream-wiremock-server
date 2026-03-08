@@ -41,6 +41,7 @@ public class DirectWireMockGrpcServer {
     private static final Logger LOG = Logger.getLogger(DirectWireMockGrpcServer.class);
 
     private final Server grpcServer;
+    private final WireMockServer wireMockServer;
 
     public static final int DEFAULT_MAX_MESSAGE_SIZE = Integer.MAX_VALUE;
 
@@ -98,13 +99,14 @@ public class DirectWireMockGrpcServer {
         if (wireMockServer == null) {
             throw new IllegalArgumentException("wireMockServer must not be null");
         }
+        this.wireMockServer = wireMockServer;
         LOG.infof("Initializing DirectWireMockGrpcServer on port %d with maxInboundMessageSize: %d", grpcPort, maxInboundMessageSize);
         this.grpcServer = ServerBuilder.forPort(grpcPort)
                 .maxInboundMessageSize(maxInboundMessageSize)
                 .intercept(new TestMetadataInterceptor())
                 .addService(new PlatformRegistrationServiceImpl())
                 .addService(new NodeUploadServiceImpl())
-                .addService(new AccountServiceImpl())
+                .addService(new AccountServiceStreamingImpl(wireMockServer))
                 .addService(new OpenSearchManagerServiceImpl())
                 .addService(ProtoReflectionServiceV1.newInstance())
                 .build();
@@ -134,10 +136,10 @@ public class DirectWireMockGrpcServer {
 
     private static class NodeUploadServiceImpl extends NodeUploadServiceGrpc.NodeUploadServiceImplBase {
         @Override
-        public void uploadFilesystemPipeDoc(UploadFilesystemPipeDocRequest request, StreamObserver<UploadFilesystemPipeDocResponse> responseObserver) {
+        public void uploadFilesystemPipeDoc(ai.pipestream.repository.filesystem.upload.v1.UploadFilesystemPipeDocRequest request, StreamObserver<ai.pipestream.repository.filesystem.upload.v1.UploadFilesystemPipeDocResponse> responseObserver) {
             String customDocId = TEST_DOC_ID_KEY.get();
             String docId = customDocId != null ? customDocId : "mock-doc-" + System.currentTimeMillis();
-            responseObserver.onNext(UploadFilesystemPipeDocResponse.newBuilder()
+            responseObserver.onNext(ai.pipestream.repository.filesystem.upload.v1.UploadFilesystemPipeDocResponse.newBuilder()
                     .setSuccess(true)
                     .setDocumentId(docId)
                     .setMessage("Direct mock upload successful")
@@ -167,8 +169,9 @@ public class DirectWireMockGrpcServer {
         }
 
         @Override
-        public void register(RegisterRequest request, StreamObserver<ai.pipestream.platform.registration.v1.RegisterResponse> responseObserver) {
+        public void register(ai.pipestream.platform.registration.v1.RegisterRequest request, StreamObserver<ai.pipestream.platform.registration.v1.RegisterResponse> responseObserver) {
             ServiceType serviceType = request.getType();
+            LOG.infof("DirectWireMockGrpcServer: register called for: %s (%s)", request.getName(), serviceType);
             if (serviceType == ServiceType.SERVICE_TYPE_MODULE) {
                 PlatformEventType[] modulePhases = {
                     PlatformEventType.PLATFORM_EVENT_TYPE_STARTED,
@@ -202,7 +205,8 @@ public class DirectWireMockGrpcServer {
         }
 
         @Override
-        public void listServices(ListServicesRequest request, StreamObserver<ai.pipestream.platform.registration.v1.ListServicesResponse> responseObserver) {
+        public void listServices(ai.pipestream.platform.registration.v1.ListServicesRequest request, StreamObserver<ai.pipestream.platform.registration.v1.ListServicesResponse> responseObserver) {
+            LOG.info("DirectWireMockGrpcServer: listServices called.");
             ai.pipestream.platform.registration.v1.ListServicesResponse response = ai.pipestream.platform.registration.v1.ListServicesResponse.newBuilder()
                     .addServices(GetServiceResponse.newBuilder()
                             .setServiceName("repository")
@@ -249,8 +253,9 @@ public class DirectWireMockGrpcServer {
         }
 
         @Override
-        public void listPlatformModules(ListPlatformModulesRequest request, StreamObserver<ai.pipestream.platform.registration.v1.ListPlatformModulesResponse> responseObserver) {
-            ListPlatformModulesResponse response = ListPlatformModulesResponse.newBuilder()
+        public void listPlatformModules(ai.pipestream.platform.registration.v1.ListPlatformModulesRequest request, StreamObserver<ai.pipestream.platform.registration.v1.ListPlatformModulesResponse> responseObserver) {
+            LOG.info("DirectWireMockGrpcServer: listPlatformModules called.");
+            ai.pipestream.platform.registration.v1.ListPlatformModulesResponse response = ai.pipestream.platform.registration.v1.ListPlatformModulesResponse.newBuilder()
                     .addModules(GetModuleResponse.newBuilder()
                             .setModuleName("parser")
                             .setServiceId("parser-1")
@@ -281,7 +286,7 @@ public class DirectWireMockGrpcServer {
         }
 
         @Override
-        public void unregister(UnregisterRequest request, StreamObserver<ai.pipestream.platform.registration.v1.UnregisterResponse> responseObserver) {
+        public void unregister(ai.pipestream.platform.registration.v1.UnregisterRequest request, StreamObserver<ai.pipestream.platform.registration.v1.UnregisterResponse> responseObserver) {
             responseObserver.onNext(ai.pipestream.platform.registration.v1.UnregisterResponse.newBuilder()
                     .setSuccess(true)
                     .setMessage("Success")
@@ -292,54 +297,135 @@ public class DirectWireMockGrpcServer {
     }
 
     private static class OpenSearchManagerServiceImpl extends OpenSearchManagerServiceGrpc.OpenSearchManagerServiceImplBase {
+        private static final String NESTED_FIELD = "embeddings";
+
         @Override
-        public void indexDocument(IndexDocumentRequest request, StreamObserver<IndexDocumentResponse> responseObserver) {
-            responseObserver.onNext(IndexDocumentResponse.newBuilder()
+        public void indexDocument(ai.pipestream.opensearch.v1.IndexDocumentRequest request, StreamObserver<ai.pipestream.opensearch.v1.IndexDocumentResponse> responseObserver) {
+            LOG.infof("DirectWireMockGrpcServer: indexDocument index=%s id=%s", request.getIndexName(), request.getDocumentId());
+            try {
+                String hosts = System.getenv("OPENSEARCH_HOSTS");
+                if (hosts != null && !hosts.isBlank()) {
+                    String jsonDoc = JsonFormat.printer().print(request.getDocument());
+                    indexToOpenSearch(request.getIndexName(), request.getDocumentId(), jsonDoc, request.getRouting(), hosts);
+                    LOG.infof("DirectWireMockGrpcServer: successfully proxied document %s to OpenSearch", request.getDocumentId());
+                }
+                
+                responseObserver.onNext(ai.pipestream.opensearch.v1.IndexDocumentResponse.newBuilder()
+                        .setSuccess(true)
+                        .setDocumentId(request.getDocumentId())
+                        .setMessage("Indexed via WireMock Smart Proxy")
+                        .build());
+            } catch (Exception e) {
+                LOG.errorf(e, "Failed to index document in WireMock Proxy");
+                responseObserver.onNext(ai.pipestream.opensearch.v1.IndexDocumentResponse.newBuilder()
+                        .setSuccess(false)
+                        .setMessage(e.getMessage())
+                        .build());
+            }
+            responseObserver.onCompleted();
+        }
+
+        @Override
+        public void indexAnyDocument(ai.pipestream.opensearch.v1.IndexAnyDocumentRequest request, StreamObserver<ai.pipestream.opensearch.v1.IndexAnyDocumentResponse> responseObserver) {
+            LOG.infof("DirectWireMockGrpcServer: indexAnyDocument index=%s", request.getIndexName());
+            responseObserver.onNext(ai.pipestream.opensearch.v1.IndexAnyDocumentResponse.newBuilder()
                     .setSuccess(true)
-                    .setDocumentId(request.getDocumentId())
-                    .setMessage("Indexed via WireMock")
+                    .setMessage("AnyDocument received by WireMock Smart Proxy")
                     .build());
             responseObserver.onCompleted();
         }
 
         @Override
-        public void indexAnyDocument(IndexAnyDocumentRequest request, StreamObserver<IndexAnyDocumentResponse> responseObserver) {
-            responseObserver.onNext(IndexAnyDocumentResponse.newBuilder()
-                    .setSuccess(true)
-                    .setMessage("AnyDocument received by WireMock")
-                    .build());
+        public void createIndex(ai.pipestream.opensearch.v1.CreateIndexRequest request, StreamObserver<ai.pipestream.opensearch.v1.CreateIndexResponse> responseObserver) {
+            responseObserver.onNext(ai.pipestream.opensearch.v1.CreateIndexResponse.newBuilder().setSuccess(true).build());
             responseObserver.onCompleted();
         }
 
         @Override
-        public void createIndex(ai.pipestream.opensearch.v1.CreateIndexRequest request, StreamObserver<CreateIndexResponse> responseObserver) {
-            responseObserver.onNext(CreateIndexResponse.newBuilder().setSuccess(true).build());
+        public void indexExists(ai.pipestream.opensearch.v1.IndexExistsRequest request, StreamObserver<ai.pipestream.opensearch.v1.IndexExistsResponse> responseObserver) {
+            responseObserver.onNext(ai.pipestream.opensearch.v1.IndexExistsResponse.newBuilder().setExists(true).build());
             responseObserver.onCompleted();
         }
 
         @Override
-        public void indexExists(ai.pipestream.opensearch.v1.IndexExistsRequest request, StreamObserver<IndexExistsResponse> responseObserver) {
-            responseObserver.onNext(IndexExistsResponse.newBuilder().setExists(true).build());
+        public void searchFilesystemMeta(ai.pipestream.opensearch.v1.SearchFilesystemMetaRequest request, StreamObserver<ai.pipestream.opensearch.v1.SearchFilesystemMetaResponse> responseObserver) {
+            responseObserver.onNext(ai.pipestream.opensearch.v1.SearchFilesystemMetaResponse.newBuilder().setTotalCount(0).build());
             responseObserver.onCompleted();
         }
 
         @Override
-        public void searchFilesystemMeta(ai.pipestream.opensearch.v1.SearchFilesystemMetaRequest request, StreamObserver<SearchFilesystemMetaResponse> responseObserver) {
-            responseObserver.onNext(SearchFilesystemMetaResponse.newBuilder().build());
+        public void ensureNestedEmbeddingsFieldExists(ai.pipestream.schemamanager.v1.EnsureNestedEmbeddingsFieldExistsRequest request,
+                StreamObserver<ai.pipestream.schemamanager.v1.EnsureNestedEmbeddingsFieldExistsResponse> responseObserver) {
+            LOG.infof("DirectWireMockGrpcServer: ensureNestedEmbeddingsFieldExists index=%s field=%s",
+                    request.getIndexName(), request.getNestedFieldName());
+            try {
+                createIndexIfNeeded(request);
+                responseObserver.onNext(ai.pipestream.schemamanager.v1.EnsureNestedEmbeddingsFieldExistsResponse.newBuilder()
+                        .setSchemaExisted(false)
+                        .build());
+            } catch (Exception e) {
+                LOG.errorf(e, "Failed to ensure nested embeddings field");
+                responseObserver.onError(Status.INTERNAL.withCause(e).asRuntimeException());
+                return;
+            }
             responseObserver.onCompleted();
         }
 
-        @Override
-        public void ensureNestedEmbeddingsFieldExists(EnsureNestedEmbeddingsFieldExistsRequest request,
-                StreamObserver<EnsureNestedEmbeddingsFieldExistsResponse> responseObserver) {
-            responseObserver.onNext(EnsureNestedEmbeddingsFieldExistsResponse.newBuilder().setSchemaExisted(false).build());
-            responseObserver.onCompleted();
+        private void indexToOpenSearch(String index, String id, String json, String routing, String hosts) throws IOException {
+            HttpHost[] httpHosts = parseHttpHosts(hosts);
+            var transport = ApacheHttpClient5TransportBuilder.builder(httpHosts)
+                    .setMapper(new JacksonJsonpMapper())
+                    .build();
+            OpenSearchClient client = new OpenSearchClient(transport);
+            client.index(i -> {
+                i.index(index).document(json);
+                if (id != null && !id.isBlank()) i.id(id);
+                if (routing != null && !routing.isBlank()) i.routing(routing);
+                return i;
+            });
+        }
+
+        private void createIndexIfNeeded(EnsureNestedEmbeddingsFieldExistsRequest request) throws IOException {
+            String hosts = System.getenv("OPENSEARCH_HOSTS");
+            if (hosts == null || hosts.isBlank()) return;
+            
+            String indexName = request.getIndexName();
+            String fieldName = request.getNestedFieldName().isBlank() ? NESTED_FIELD : request.getNestedFieldName();
+            int dimension = request.hasVectorFieldDefinition() ? request.getVectorFieldDefinition().getDimension() : 384;
+
+            HttpHost[] httpHosts = parseHttpHosts(hosts);
+            var transport = ApacheHttpClient5TransportBuilder.builder(httpHosts).setMapper(new JacksonJsonpMapper()).build();
+            OpenSearchClient client = new OpenSearchClient(transport);
+
+            if (!client.indices().exists(e -> e.index(indexName)).value()) {
+                KnnVectorProperty knnVector = KnnVectorProperty.of(k -> k.dimension(dimension));
+                TypeMapping mapping = new TypeMapping.Builder()
+                        .properties(fieldName, Property.of(p -> p.nested(NestedProperty.of(n -> n.properties(Map.of("vector", Property.of(v -> v.knnVector(knnVector))))))))
+                        .build();
+                client.indices().create(c -> c.index(indexName).settings(s -> s.knn(true)).mappings(mapping));
+            }
+        }
+
+        private HttpHost[] parseHttpHosts(String hosts) {
+            String[] parts = hosts.split(",");
+            HttpHost[] result = new HttpHost[parts.length];
+            for (int i = 0; i < parts.length; i++) {
+                URI uri = URI.create(parts[i].trim().startsWith("http") ? parts[i].trim() : "http://" + parts[i].trim());
+                result[i] = new HttpHost(uri.getScheme() != null ? uri.getScheme() : "http", uri.getHost(), uri.getPort() > 0 ? uri.getPort() : 9200);
+            }
+            return result;
         }
     }
 
-    private static class AccountServiceImpl extends AccountServiceGrpc.AccountServiceImplBase {
+    private static class AccountServiceStreamingImpl extends AccountServiceGrpc.AccountServiceImplBase {
+        private final WireMockServer wireMockServer;
+
+        public AccountServiceStreamingImpl(WireMockServer wireMockServer) {
+            this.wireMockServer = wireMockServer;
+        }
+
         @Override
-        public void getAccount(GetAccountRequest request, StreamObserver<ai.pipestream.repository.account.v1.GetAccountResponse> responseObserver) {
+        public void getAccount(ai.pipestream.repository.account.v1.GetAccountRequest request, StreamObserver<ai.pipestream.repository.account.v1.GetAccountResponse> responseObserver) {
             responseObserver.onNext(ai.pipestream.repository.account.v1.GetAccountResponse.newBuilder()
                     .setAccount(Account.newBuilder().setAccountId(request.getAccountId()).setName("Mock Account").setActive(true).build())
                     .build());
@@ -347,23 +433,31 @@ public class DirectWireMockGrpcServer {
         }
 
         @Override
-        public void streamAllAccounts(StreamAllAccountsRequest request, StreamObserver<ai.pipestream.repository.account.v1.StreamAllAccountsResponse> responseObserver) {
+        public void streamAllAccounts(ai.pipestream.repository.account.v1.StreamAllAccountsRequest request, StreamObserver<ai.pipestream.repository.account.v1.StreamAllAccountsResponse> responseObserver) {
+            String scenario = TEST_SCENARIO_KEY.get();
+            MockConfig config = new MockConfig();
+            
             boolean includeInactive = request.getIncludeInactive();
-            Timestamp ts = Timestamp.newBuilder().setSeconds(Instant.now().getEpochSecond()).build();
+            List<Account> all = getMockAccounts(scenario, config);
 
-            Account[] mockAccounts = {
-                Account.newBuilder().setAccountId("default-account").setName("Default Account").setActive(true).setCreatedAt(ts).setUpdatedAt(ts).build(),
-                Account.newBuilder().setAccountId("valid-account").setName("Valid Account").setActive(true).setCreatedAt(ts).setUpdatedAt(ts).build(),
-                Account.newBuilder().setAccountId("inactive-account").setName("Inactive Account").setActive(false).setCreatedAt(ts).setUpdatedAt(ts).build()
-            };
-
-            for (Account account : mockAccounts) {
+            for (Account account : all) {
                 if (!includeInactive && !account.getActive()) {
                     continue;
                 }
                 responseObserver.onNext(StreamAllAccountsResponse.newBuilder().setAccount(account).build());
             }
             responseObserver.onCompleted();
+        }
+
+        private List<Account> getMockAccounts(String scenario, MockConfig config) {
+            List<Account> accounts = new ArrayList<>();
+            Timestamp ts = Timestamp.newBuilder().setSeconds(Instant.now().getEpochSecond()).build();
+
+            accounts.add(Account.newBuilder().setAccountId("default-account").setName("Default Account").setActive(true).setCreatedAt(ts).setUpdatedAt(ts).build());
+            accounts.add(Account.newBuilder().setAccountId("valid-account").setName("Valid Account").setActive(true).setCreatedAt(ts).setUpdatedAt(ts).build());
+            accounts.add(Account.newBuilder().setAccountId("inactive-account").setName("Inactive Account").setActive(false).setCreatedAt(ts).setUpdatedAt(ts).build());
+            
+            return accounts;
         }
     }
 }
