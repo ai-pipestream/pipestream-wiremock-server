@@ -134,12 +134,13 @@ public class DirectWireMockGrpcServer {
 
     private static class NodeUploadServiceImpl extends NodeUploadServiceGrpc.NodeUploadServiceImplBase {
         @Override
-        public void uploadFilesystemPipeDoc(ai.pipestream.repository.filesystem.upload.v1.UploadFilesystemPipeDocRequest request, StreamObserver<ai.pipestream.repository.filesystem.upload.v1.UploadFilesystemPipeDocResponse> responseObserver) {
+        public void uploadFilesystemPipeDoc(UploadFilesystemPipeDocRequest request, StreamObserver<UploadFilesystemPipeDocResponse> responseObserver) {
             String customDocId = TEST_DOC_ID_KEY.get();
             String docId = customDocId != null ? customDocId : "mock-doc-" + System.currentTimeMillis();
-            responseObserver.onNext(ai.pipestream.repository.filesystem.upload.v1.UploadFilesystemPipeDocResponse.newBuilder()
+            responseObserver.onNext(UploadFilesystemPipeDocResponse.newBuilder()
                     .setSuccess(true)
                     .setDocumentId(docId)
+                    .setMessage("Direct mock upload successful")
                     .build());
             responseObserver.onCompleted();
         }
@@ -166,24 +167,51 @@ public class DirectWireMockGrpcServer {
         }
 
         @Override
-        public void register(ai.pipestream.platform.registration.v1.RegisterRequest request, StreamObserver<ai.pipestream.platform.registration.v1.RegisterResponse> responseObserver) {
-            responseObserver.onNext(createResponse(PlatformEventType.PLATFORM_EVENT_TYPE_STARTED, "Started"));
-            responseObserver.onNext(createResponse(PlatformEventType.PLATFORM_EVENT_TYPE_COMPLETED, "Completed"));
+        public void register(RegisterRequest request, StreamObserver<ai.pipestream.platform.registration.v1.RegisterResponse> responseObserver) {
+            ServiceType serviceType = request.getType();
+            if (serviceType == ServiceType.SERVICE_TYPE_MODULE) {
+                PlatformEventType[] modulePhases = {
+                    PlatformEventType.PLATFORM_EVENT_TYPE_STARTED,
+                    PlatformEventType.PLATFORM_EVENT_TYPE_VALIDATED,
+                    PlatformEventType.PLATFORM_EVENT_TYPE_CONSUL_REGISTERED,
+                    PlatformEventType.PLATFORM_EVENT_TYPE_HEALTH_CHECK_CONFIGURED,
+                    PlatformEventType.PLATFORM_EVENT_TYPE_CONSUL_HEALTHY,
+                    PlatformEventType.PLATFORM_EVENT_TYPE_METADATA_RETRIEVED,
+                    PlatformEventType.PLATFORM_EVENT_TYPE_SCHEMA_VALIDATED,
+                    PlatformEventType.PLATFORM_EVENT_TYPE_DATABASE_SAVED,
+                    PlatformEventType.PLATFORM_EVENT_TYPE_APICURIO_REGISTERED,
+                    PlatformEventType.PLATFORM_EVENT_TYPE_COMPLETED
+                };
+                for (PlatformEventType phase : modulePhases) {
+                    responseObserver.onNext(createResponse(phase, phase.name()));
+                }
+            } else {
+                PlatformEventType[] servicePhases = {
+                    PlatformEventType.PLATFORM_EVENT_TYPE_STARTED,
+                    PlatformEventType.PLATFORM_EVENT_TYPE_VALIDATED,
+                    PlatformEventType.PLATFORM_EVENT_TYPE_CONSUL_REGISTERED,
+                    PlatformEventType.PLATFORM_EVENT_TYPE_HEALTH_CHECK_CONFIGURED,
+                    PlatformEventType.PLATFORM_EVENT_TYPE_CONSUL_HEALTHY,
+                    PlatformEventType.PLATFORM_EVENT_TYPE_COMPLETED
+                };
+                for (PlatformEventType phase : servicePhases) {
+                    responseObserver.onNext(createResponse(phase, phase.name()));
+                }
+            }
             responseObserver.onCompleted();
         }
 
         @Override
-        public void listServices(ai.pipestream.platform.registration.v1.ListServicesRequest request, StreamObserver<ai.pipestream.platform.registration.v1.ListServicesResponse> responseObserver) {
-            LOG.info("DirectWireMockGrpcServer: listServices called.");
+        public void listServices(ListServicesRequest request, StreamObserver<ai.pipestream.platform.registration.v1.ListServicesResponse> responseObserver) {
             ai.pipestream.platform.registration.v1.ListServicesResponse response = ai.pipestream.platform.registration.v1.ListServicesResponse.newBuilder()
-                    .addServices(ai.pipestream.platform.registration.v1.GetServiceResponse.newBuilder()
+                    .addServices(GetServiceResponse.newBuilder()
                             .setServiceName("repository")
                             .setServiceId("repo-1")
                             .setHost("localhost")
                             .setPort(8080)
                             .setVersion("1.0.0")
                             .setIsHealthy(true)
-                            .addHttpEndpoints(ai.pipestream.platform.registration.v1.HttpEndpoint.newBuilder()
+                            .addHttpEndpoints(HttpEndpoint.newBuilder()
                                     .setScheme("http")
                                     .setHost("localhost")
                                     .setPort(8080)
@@ -194,14 +222,14 @@ public class DirectWireMockGrpcServer {
                             .setHttpSchemaArtifactId("repository-http-schema")
                             .setHttpSchemaVersion("1.0.0")
                             .build())
-                    .addServices(ai.pipestream.platform.registration.v1.GetServiceResponse.newBuilder()
+                    .addServices(GetServiceResponse.newBuilder()
                             .setServiceName("account-manager")
                             .setServiceId("account-1")
                             .setHost("localhost")
                             .setPort(18105)
                             .setVersion("1.0.0")
                             .setIsHealthy(true)
-                            .addHttpEndpoints(ai.pipestream.platform.registration.v1.HttpEndpoint.newBuilder()
+                            .addHttpEndpoints(HttpEndpoint.newBuilder()
                                     .setScheme("http")
                                     .setHost("localhost")
                                     .setPort(18105)
@@ -221,36 +249,62 @@ public class DirectWireMockGrpcServer {
         }
 
         @Override
-        public void listPlatformModules(ai.pipestream.platform.registration.v1.ListPlatformModulesRequest request, StreamObserver<ai.pipestream.platform.registration.v1.ListPlatformModulesResponse> responseObserver) {
-            responseObserver.onNext(ai.pipestream.platform.registration.v1.ListPlatformModulesResponse.newBuilder().setTotalCount(0).build());
+        public void listPlatformModules(ListPlatformModulesRequest request, StreamObserver<ai.pipestream.platform.registration.v1.ListPlatformModulesResponse> responseObserver) {
+            ListPlatformModulesResponse response = ListPlatformModulesResponse.newBuilder()
+                    .addModules(GetModuleResponse.newBuilder()
+                            .setModuleName("parser")
+                            .setServiceId("parser-1")
+                            .setHost("localhost")
+                            .setPort(8081)
+                            .setVersion("1.0.0")
+                            .setInputFormat("text/plain")
+                            .setOutputFormat("application/json")
+                            .addDocumentTypes("text")
+                            .setIsHealthy(true)
+                            .build())
+                    .addModules(GetModuleResponse.newBuilder()
+                            .setModuleName("chunker")
+                            .setServiceId("chunker-1")
+                            .setHost("localhost")
+                            .setPort(8082)
+                            .setVersion("1.0.0")
+                            .setInputFormat("application/json")
+                            .setOutputFormat("application/json")
+                            .addDocumentTypes("text")
+                            .setIsHealthy(true)
+                            .build())
+                    .setAsOf(currentTimestamp())
+                    .setTotalCount(2)
+                    .build();
+            responseObserver.onNext(response);
             responseObserver.onCompleted();
         }
 
         @Override
-        public void unregister(ai.pipestream.platform.registration.v1.UnregisterRequest request, StreamObserver<ai.pipestream.platform.registration.v1.UnregisterResponse> responseObserver) {
-            responseObserver.onNext(ai.pipestream.platform.registration.v1.UnregisterResponse.newBuilder().setSuccess(true).build());
+        public void unregister(UnregisterRequest request, StreamObserver<ai.pipestream.platform.registration.v1.UnregisterResponse> responseObserver) {
+            responseObserver.onNext(ai.pipestream.platform.registration.v1.UnregisterResponse.newBuilder()
+                    .setSuccess(true)
+                    .setMessage("Success")
+                    .setTimestamp(currentTimestamp())
+                    .build());
             responseObserver.onCompleted();
         }
     }
 
     private static class OpenSearchManagerServiceImpl extends OpenSearchManagerServiceGrpc.OpenSearchManagerServiceImplBase {
         @Override
-        public void indexDocument(ai.pipestream.opensearch.v1.IndexDocumentRequest request, StreamObserver<ai.pipestream.opensearch.v1.IndexDocumentResponse> responseObserver) {
-            try {
-                responseObserver.onNext(ai.pipestream.opensearch.v1.IndexDocumentResponse.newBuilder()
-                        .setSuccess(true)
-                        .setDocumentId(request.getDocumentId())
-                        .setMessage("Indexed via WireMock")
-                        .build());
-            } catch (Exception e) {
-                responseObserver.onNext(ai.pipestream.opensearch.v1.IndexDocumentResponse.newBuilder().setSuccess(false).setMessage(e.getMessage()).build());
-            }
+        public void indexDocument(IndexDocumentRequest request, StreamObserver<IndexDocumentResponse> responseObserver) {
+            responseObserver.onNext(IndexDocumentResponse.newBuilder()
+                    .setSuccess(true)
+                    .setDocumentId(request.getDocumentId())
+                    .setMessage("Indexed via WireMock")
+                    .build());
             responseObserver.onCompleted();
         }
 
         @Override
-        public void indexAnyDocument(ai.pipestream.opensearch.v1.IndexAnyDocumentRequest request, StreamObserver<ai.pipestream.opensearch.v1.IndexAnyDocumentResponse> responseObserver) {
-            responseObserver.onNext(ai.pipestream.opensearch.v1.IndexAnyDocumentResponse.newBuilder()
+        public void indexAnyDocument(IndexAnyDocumentRequest request, StreamObserver<IndexAnyDocumentResponse> responseObserver) {
+            responseObserver.onNext(IndexAnyDocumentResponse.newBuilder()
                     .setSuccess(true)
                     .setMessage("AnyDocument received by WireMock")
                     .build());
@@ -258,41 +312,57 @@ public class DirectWireMockGrpcServer {
         }
 
         @Override
-        public void createIndex(ai.pipestream.opensearch.v1.CreateIndexRequest request, StreamObserver<ai.pipestream.opensearch.v1.CreateIndexResponse> responseObserver) {
-            responseObserver.onNext(ai.pipestream.opensearch.v1.CreateIndexResponse.newBuilder().setSuccess(true).build());
+        public void createIndex(ai.pipestream.opensearch.v1.CreateIndexRequest request, StreamObserver<CreateIndexResponse> responseObserver) {
+            responseObserver.onNext(CreateIndexResponse.newBuilder().setSuccess(true).build());
             responseObserver.onCompleted();
         }
 
         @Override
-        public void indexExists(ai.pipestream.opensearch.v1.IndexExistsRequest request, StreamObserver<ai.pipestream.opensearch.v1.IndexExistsResponse> responseObserver) {
-            responseObserver.onNext(ai.pipestream.opensearch.v1.IndexExistsResponse.newBuilder().setExists(true).build());
+        public void indexExists(ai.pipestream.opensearch.v1.IndexExistsRequest request, StreamObserver<IndexExistsResponse> responseObserver) {
+            responseObserver.onNext(IndexExistsResponse.newBuilder().setExists(true).build());
             responseObserver.onCompleted();
         }
 
         @Override
-        public void searchFilesystemMeta(ai.pipestream.opensearch.v1.SearchFilesystemMetaRequest request, StreamObserver<ai.pipestream.opensearch.v1.SearchFilesystemMetaResponse> responseObserver) {
-            responseObserver.onNext(ai.pipestream.opensearch.v1.SearchFilesystemMetaResponse.newBuilder().build());
+        public void searchFilesystemMeta(ai.pipestream.opensearch.v1.SearchFilesystemMetaRequest request, StreamObserver<SearchFilesystemMetaResponse> responseObserver) {
+            responseObserver.onNext(SearchFilesystemMetaResponse.newBuilder().build());
             responseObserver.onCompleted();
         }
 
         @Override
-        public void ensureNestedEmbeddingsFieldExists(ai.pipestream.schemamanager.v1.EnsureNestedEmbeddingsFieldExistsRequest request,
-                StreamObserver<ai.pipestream.schemamanager.v1.EnsureNestedEmbeddingsFieldExistsResponse> responseObserver) {
-            responseObserver.onNext(ai.pipestream.schemamanager.v1.EnsureNestedEmbeddingsFieldExistsResponse.newBuilder().setSchemaExisted(false).build());
+        public void ensureNestedEmbeddingsFieldExists(EnsureNestedEmbeddingsFieldExistsRequest request,
+                StreamObserver<EnsureNestedEmbeddingsFieldExistsResponse> responseObserver) {
+            responseObserver.onNext(EnsureNestedEmbeddingsFieldExistsResponse.newBuilder().setSchemaExisted(false).build());
             responseObserver.onCompleted();
         }
     }
 
     private static class AccountServiceImpl extends AccountServiceGrpc.AccountServiceImplBase {
         @Override
-        public void getAccount(ai.pipestream.repository.account.v1.GetAccountRequest request, StreamObserver<ai.pipestream.repository.account.v1.GetAccountResponse> responseObserver) {
-            responseObserver.onNext(ai.pipestream.repository.account.v1.GetAccountResponse.newBuilder().build());
+        public void getAccount(GetAccountRequest request, StreamObserver<ai.pipestream.repository.account.v1.GetAccountResponse> responseObserver) {
+            responseObserver.onNext(ai.pipestream.repository.account.v1.GetAccountResponse.newBuilder()
+                    .setAccount(Account.newBuilder().setAccountId(request.getAccountId()).setName("Mock Account").setActive(true).build())
+                    .build());
             responseObserver.onCompleted();
         }
 
         @Override
-        public void streamAllAccounts(ai.pipestream.repository.account.v1.StreamAllAccountsRequest request, StreamObserver<ai.pipestream.repository.account.v1.StreamAllAccountsResponse> responseObserver) {
-            responseObserver.onNext(ai.pipestream.repository.account.v1.StreamAllAccountsResponse.newBuilder().build());
+        public void streamAllAccounts(StreamAllAccountsRequest request, StreamObserver<ai.pipestream.repository.account.v1.StreamAllAccountsResponse> responseObserver) {
+            boolean includeInactive = request.getIncludeInactive();
+            Timestamp ts = Timestamp.newBuilder().setSeconds(Instant.now().getEpochSecond()).build();
+
+            Account[] mockAccounts = {
+                Account.newBuilder().setAccountId("default-account").setName("Default Account").setActive(true).setCreatedAt(ts).setUpdatedAt(ts).build(),
+                Account.newBuilder().setAccountId("valid-account").setName("Valid Account").setActive(true).setCreatedAt(ts).setUpdatedAt(ts).build(),
+                Account.newBuilder().setAccountId("inactive-account").setName("Inactive Account").setActive(false).setCreatedAt(ts).setUpdatedAt(ts).build()
+            };
+
+            for (Account account : mockAccounts) {
+                if (!includeInactive && !account.getActive()) {
+                    continue;
+                }
+                responseObserver.onNext(StreamAllAccountsResponse.newBuilder().setAccount(account).build());
+            }
             responseObserver.onCompleted();
         }
     }
