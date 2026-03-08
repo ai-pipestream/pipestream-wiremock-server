@@ -1,0 +1,22 @@
+{
+  "name": "datasource-admin-get",
+  "request": {
+    "method": "POST",
+    "urlPath": "/ai.pipestream.connector.intake.v1.DataSourceAdminService/GetDataSource"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "grpc-status-name": "OK"
+    },
+    "jsonBody": {
+      "datasource": {
+        "datasource_id": "ds-1",
+        "name": "Test Datasource",
+        "account_id": "acc-1",
+        "connector_id": "conn-1",
+        "active": true
+      }
+    }
+  }
+}

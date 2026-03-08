@@ -1,0 +1,31 @@
+{
+  "name": "pipeline-config-get-config",
+  "request": {
+    "method": "POST",
+    "urlPath": "/ai.pipestream.config.v1.PipelineConfigService/GetPipelineConfig"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "grpc-status-name": "OK"
+    },
+    "jsonBody": {
+      "graph": {
+        "graph_id": "test-pipeline",
+        "name": "Test Pipeline",
+        "nodes": [
+          {
+            "node_id": "step-1",
+            "name": "parser",
+            "module_id": "parser-mod"
+          },
+          {
+            "node_id": "step-2",
+            "name": "opensearch-sink",
+            "module_id": "sink-mod"
+          }
+        ]
+      }
+    }
+  }
+}
