@@ -43,9 +43,12 @@ jobs:
       - name: Determine and create version tag
         if: github.event_name == 'workflow_dispatch'
         run: |
-          # Get the latest tag
-          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          echo "Latest tag: $LATEST_TAG"
+          # Get the absolute latest tag in the repo, not just reachable ones
+          LATEST_TAG=$(git tag -l "v*" --sort=-v:refname | head -n 1)
+          if [ -z "$LATEST_TAG" ]; then
+            LATEST_TAG="v0.0.0"
+          fi
+          echo "Latest tag in repo: $LATEST_TAG"
 
           # Remove 'v' prefix for version calculation
           VERSION=${LATEST_TAG#v}
