@@ -1,0 +1,28 @@
+{
+  "name": "embedding-config-get",
+  "request": {
+    "method": "POST",
+    "urlPath": "/ai.pipestream.opensearch.v1.EmbeddingConfigService/GetEmbeddingModelConfig"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "grpc-status-name": "OK"
+    },
+    "jsonBody": {
+      "config": {
+        "id": "embed-1",
+        "name": "Titan Text Embeddings v2",
+        "model_identifier": "amazon.titan-embed-text-v2:0",
+        "dimensions": 1024,
+        "metadata": {
+          "fields": {
+            "region": {
+              "string_value": "us-east-1"
+            }
+          }
+        }
+      }
+    }
+  }
+}

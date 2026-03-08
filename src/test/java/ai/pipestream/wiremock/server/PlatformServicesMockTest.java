@@ -82,6 +82,29 @@ class PlatformServicesMockTest {
     }
 
     @Test
+    void testChunkerConfig_Get() {
+        ChunkerConfigServiceGrpc.ChunkerConfigServiceBlockingStub stub = ChunkerConfigServiceGrpc.newBlockingStub(declarativeChannel);
+        GetChunkerConfigRequest request = GetChunkerConfigRequest.newBuilder().setId("chunk-1").build();
+        GetChunkerConfigResponse response = stub.getChunkerConfig(request);
+
+        assertNotNull(response.getConfig());
+        assertEquals("chunk-1", response.getConfig().getId());
+        // Chunker uses config_json field for its parameters
+        assertTrue(response.getConfig().hasConfigJson());
+    }
+
+    @Test
+    void testEmbeddingConfig_Get() {
+        EmbeddingConfigServiceGrpc.EmbeddingConfigServiceBlockingStub stub = EmbeddingConfigServiceGrpc.newBlockingStub(declarativeChannel);
+        GetEmbeddingModelConfigRequest request = GetEmbeddingModelConfigRequest.newBuilder().setId("embed-1").build();
+        GetEmbeddingModelConfigResponse response = stub.getEmbeddingModelConfig(request);
+
+        assertNotNull(response.getConfig());
+        assertEquals("embed-1", response.getConfig().getId());
+        assertEquals(1024, response.getConfig().getDimensions());
+    }
+
+    @Test
     void testDataSourceAdmin_Get() {
         DataSourceAdminServiceGrpc.DataSourceAdminServiceBlockingStub stub = DataSourceAdminServiceGrpc.newBlockingStub(declarativeChannel);
         GetDataSourceRequest request = GetDataSourceRequest.newBuilder().setDatasourceId("ds-1").build();
