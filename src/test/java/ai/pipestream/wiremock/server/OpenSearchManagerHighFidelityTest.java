@@ -57,7 +57,7 @@ class OpenSearchManagerHighFidelityTest {
         IndexDocumentRequest request = IndexDocumentRequest.newBuilder()
                 .setIndexName("proxy-index")
                 .setDocumentId("normal-doc-1")
-                .setDocument(OpenSearchDocument.newBuilder().setTitle("Proxy Test").build())
+                .setDocument(OpenSearchDocument.newBuilder().setOriginalDocId("normal-doc-1").setTitle("Proxy Test").build())
                 .build();
 
         IndexDocumentResponse response = blockingStub.indexDocument(request);
@@ -73,15 +73,14 @@ class OpenSearchManagerHighFidelityTest {
         IndexDocumentRequest request = IndexDocumentRequest.newBuilder()
                 .setIndexName("any-index")
                 .setDocumentId("fail-this-doc")
-                .setDocument(OpenSearchDocument.newBuilder().setTitle("Fail me").build())
+                .setDocument(OpenSearchDocument.newBuilder().setOriginalDocId("fail-this-doc").setTitle("Fail me").build())
                 .build();
 
-        StatusRuntimeException exception = assertThrows(StatusRuntimeException.class, () -> {
-            blockingStub.indexDocument(request);
-        });
+        IndexDocumentResponse response = blockingStub.indexDocument(request);
 
-        assertEquals(Status.Code.INTERNAL, exception.getStatus().getCode());
-        assertTrue(exception.getMessage().contains("Forced internal error"));
+        assertNotNull(response);
+        assertFalse(response.getSuccess());
+        assertTrue(response.getMessage().contains("Forced internal error"));
     }
 
     @Test
@@ -95,14 +94,13 @@ class OpenSearchManagerHighFidelityTest {
         IndexDocumentRequest request = IndexDocumentRequest.newBuilder()
                 .setIndexName("any-index")
                 .setDocumentId("normal-doc")
-                .setDocument(OpenSearchDocument.newBuilder().setTitle("Fail me via header").build())
+                .setDocument(OpenSearchDocument.newBuilder().setOriginalDocId("normal-doc").setTitle("Fail me via header").build())
                 .build();
 
-        StatusRuntimeException exception = assertThrows(StatusRuntimeException.class, () -> {
-            headerStub.indexDocument(request);
-        });
+        IndexDocumentResponse response = headerStub.indexDocument(request);
 
-        assertEquals(Status.Code.INTERNAL, exception.getStatus().getCode());
-        assertTrue(exception.getMessage().contains("Forced internal error"));
+        assertNotNull(response);
+        assertFalse(response.getSuccess());
+        assertTrue(response.getMessage().contains("Forced internal error"));
     }
 }

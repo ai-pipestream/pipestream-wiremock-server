@@ -113,11 +113,10 @@ class PlatformServicesMockTest {
                 .setDocument(OpenSearchDocument.newBuilder().setOriginalDocId("fail-this-doc").setTitle("This will fail").build())
                 .build();
         
-        StatusRuntimeException exception = assertThrows(StatusRuntimeException.class, () -> {
-            stub.indexDocument(request);
-        });
+        IndexDocumentResponse response = stub.indexDocument(request);
 
-        assertEquals(Status.Code.INTERNAL, exception.getStatus().getCode());
-        assertTrue(exception.getMessage().contains("Forced internal error"));
+        assertNotNull(response);
+        assertFalse(response.getSuccess());
+        assertTrue(response.getMessage().contains("Forced internal error"));
     }
 }
