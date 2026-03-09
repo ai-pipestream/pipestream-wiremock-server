@@ -315,8 +315,12 @@ public class DirectWireMockGrpcServer {
             
             // Handle forced failure scenarios
             String scenario = TEST_SCENARIO_KEY.get();
-            if ("force-error".equals(scenario) || "fail-this-doc".equals(request.getDocumentId()) || "fail-this-index".equals(request.getIndexName())) {
-                responseObserver.onError(Status.INTERNAL.withDescription("Forced internal error via mock trigger").asRuntimeException());
+            if ("force-error".equals(scenario) || "fail-this-doc".equals(request.getDocumentId()) || request.getIndexName().contains("fail-this-index")) {
+                responseObserver.onNext(IndexDocumentResponse.newBuilder()
+                        .setSuccess(false)
+                        .setMessage("Forced internal error via mock trigger")
+                        .build());
+                responseObserver.onCompleted();
                 return;
             }
 
