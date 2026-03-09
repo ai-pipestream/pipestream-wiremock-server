@@ -168,3 +168,4 @@ registry.getProcessorMock().mockProcessDataFailure("Error", "CODE");
 *   **Release**: Versioning is handled via `axion-release` plugin. Tags created in Git trigger CI builds.
 \n\n# Trigger build: verified green state
 \n\n# Verified release build state
+\n\n# Verified stable high-fidelity mock state
