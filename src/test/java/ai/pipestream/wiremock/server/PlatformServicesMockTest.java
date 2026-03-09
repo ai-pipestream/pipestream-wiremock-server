@@ -152,4 +152,38 @@ class PlatformServicesMockTest {
         assertTrue(response.getSuccess());
         assertTrue(response.getMessage().contains("Streamed"));
     }
+
+    @Test
+    void testOpenSearchManager_StreamIndexDocuments_ForcedError() throws Exception {
+        OpenSearchManagerServiceGrpc.OpenSearchManagerServiceStub stub = OpenSearchManagerServiceGrpc.newStub(directChannel);
+        java.util.concurrent.CompletableFuture<StreamIndexDocumentsResponse> future = new java.util.concurrent.CompletableFuture<>();
+
+        io.grpc.stub.StreamObserver<StreamIndexDocumentsRequest> requestObserver = stub.streamIndexDocuments(new io.grpc.stub.StreamObserver<StreamIndexDocumentsResponse>() {
+            @Override
+            public void onNext(StreamIndexDocumentsResponse value) {
+                future.complete(value);
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                future.completeExceptionally(t);
+            }
+
+            @Override
+            public void onCompleted() {}
+        });
+
+        requestObserver.onNext(StreamIndexDocumentsRequest.newBuilder()
+                .setRequestId("bulk-fail")
+                .setIndexName("fail-this-index-bulk")
+                .setDocument(OpenSearchDocument.newBuilder().setOriginalDocId("fail-doc").setTitle("Fail").build())
+                .build());
+        requestObserver.onCompleted();
+
+        StreamIndexDocumentsResponse response = future.get(5, TimeUnit.SECONDS);
+        assertNotNull(response);
+        assertFalse(response.getSuccess());
+        assertEquals("bulk-fail", response.getRequestId());
+        assertTrue(response.getMessage().contains("Forced internal error"));
+    }
 }
