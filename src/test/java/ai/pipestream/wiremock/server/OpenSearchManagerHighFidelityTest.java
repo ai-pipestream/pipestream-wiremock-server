@@ -103,4 +103,39 @@ class OpenSearchManagerHighFidelityTest {
         assertFalse(response.getSuccess());
         assertTrue(response.getMessage().contains("Forced internal error"));
     }
+
+    @Test
+    void testStreamIndexDocuments_Success() throws Exception {
+        OpenSearchManagerServiceGrpc.OpenSearchManagerServiceStub asyncStub = OpenSearchManagerServiceGrpc.newStub(channel);
+        java.util.concurrent.CompletableFuture<StreamIndexDocumentsResponse> future = new java.util.concurrent.CompletableFuture<>();
+
+        io.grpc.stub.StreamObserver<StreamIndexDocumentsRequest> requestObserver = asyncStub.streamIndexDocuments(new io.grpc.stub.StreamObserver<StreamIndexDocumentsResponse>() {
+            @Override
+            public void onNext(StreamIndexDocumentsResponse value) {
+                future.complete(value);
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                future.completeExceptionally(t);
+            }
+
+            @Override
+            public void onCompleted() {
+            }
+        });
+
+        requestObserver.onNext(StreamIndexDocumentsRequest.newBuilder()
+                .setRequestId("req-1")
+                .setIndexName("stream-index")
+                .setDocument(OpenSearchDocument.newBuilder().setOriginalDocId("doc-1").setTitle("Stream Test").build())
+                .build());
+        requestObserver.onCompleted();
+
+        StreamIndexDocumentsResponse response = future.get(5, TimeUnit.SECONDS);
+        assertNotNull(response);
+        assertTrue(response.getSuccess());
+        assertEquals("req-1", response.getRequestId());
+        assertTrue(response.getMessage().contains("Streamed via WireMock"));
+    }
 }
