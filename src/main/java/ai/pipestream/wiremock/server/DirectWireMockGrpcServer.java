@@ -356,6 +356,76 @@ public class DirectWireMockGrpcServer {
         }
 
         @Override
+        public StreamObserver<StreamIndexDocumentsRequest> streamIndexDocuments(StreamObserver<StreamIndexDocumentsResponse> responseObserver) {
+            return new StreamObserver<StreamIndexDocumentsRequest>() {
+                @Override
+                public void onNext(StreamIndexDocumentsRequest request) {
+                    LOG.debugf("DirectWireMockGrpcServer: streamIndexDocuments index=%s id=%s", request.getIndexName(), request.getDocumentId());
+                    
+                    String scenario = TEST_SCENARIO_KEY.get();
+                    if ("force-error".equals(scenario) || "fail-this-doc".equals(request.getDocumentId()) || request.getIndexName().contains("fail-this-index")) {
+                        responseObserver.onNext(StreamIndexDocumentsResponse.newBuilder()
+                                .setRequestId(request.getRequestId())
+                                .setSuccess(false)
+                                .setMessage("Forced internal error via mock trigger")
+                                .build());
+                        return;
+                    }
+
+                    if (!request.hasDocument()) {
+                        responseObserver.onNext(StreamIndexDocumentsResponse.newBuilder()
+                                .setRequestId(request.getRequestId())
+                                .setSuccess(false)
+                                .setMessage("Request missing document")
+                                .build());
+                        return;
+                    }
+
+                    if (request.getDocument().getOriginalDocId().isBlank() && request.getDocumentId().isBlank()) {
+                        responseObserver.onNext(StreamIndexDocumentsResponse.newBuilder()
+                                .setRequestId(request.getRequestId())
+                                .setSuccess(false)
+                                .setMessage("Request missing document ID")
+                                .build());
+                        return;
+                    }
+
+                    for (SemanticVectorSet set : request.getDocument().getSemanticSetsList()) {
+                        if (set.getEmbeddingsCount() > 0) {
+                            for (OpenSearchEmbedding emb : set.getEmbeddingsList()) {
+                                if (emb.getVectorCount() == 0) {
+                                    responseObserver.onNext(StreamIndexDocumentsResponse.newBuilder()
+                                            .setRequestId(request.getRequestId())
+                                            .setSuccess(false)
+                                            .setMessage("Embedding missing vector floats")
+                                            .build());
+                                    return;
+                                }
+                            }
+                        }
+                    }
+
+                    responseObserver.onNext(StreamIndexDocumentsResponse.newBuilder()
+                            .setRequestId(request.getRequestId())
+                            .setSuccess(true)
+                            .setDocumentId(request.getDocumentId().isBlank() ? request.getDocument().getOriginalDocId() : request.getDocumentId())
+                            .setMessage("Streamed via WireMock High-Fidelity Mock")
+                            .build());
+                }
+
+                @Override
+                public void onError(Throwable t) {
+                    LOG.error("Error in streamIndexDocuments from client", t);
+                }
+
+                @Override
+                public void onCompleted() {
+                    responseObserver.onCompleted();
+                }
+            };
+        }
+
+        @Override
         public void indexAnyDocument(IndexAnyDocumentRequest request, StreamObserver<IndexAnyDocumentResponse> responseObserver) {
             responseObserver.onNext(IndexAnyDocumentResponse.newBuilder()
                     .setSuccess(true)
