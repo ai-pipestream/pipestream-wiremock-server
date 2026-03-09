@@ -13,7 +13,7 @@ proto-google-common-protos = "2.66.0"
 junit-jupiter = "6.0.3"
 junit-platform = "6.0.3"
 shadow = "9.3.1"
-proto-toolchain = "0.7.17"
+proto-toolchain = "0.7.18"
 
 # Plugins
 axion-release = "1.21.1"
