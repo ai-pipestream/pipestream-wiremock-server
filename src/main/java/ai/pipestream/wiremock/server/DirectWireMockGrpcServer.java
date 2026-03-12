@@ -16,6 +16,7 @@ import ai.pipestream.schemamanager.v1.EnsureNestedEmbeddingsFieldExistsResponse;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -463,19 +464,41 @@ public class DirectWireMockGrpcServer {
     }
 
     private static class AccountServiceStreamingImpl extends AccountServiceGrpc.AccountServiceImplBase {
+
+        private static final String NOT_FOUND_ID = System.getenv().getOrDefault(
+                "WIREMOCK_ACCOUNT_GETACCOUNT_NOTFOUND_ID", "nonexistent");
+
+        private static final Map<String, Account> ACCOUNT_FIXTURES;
+
+        static {
+            Timestamp ts = Timestamp.newBuilder().setSeconds(Instant.now().getEpochSecond()).build();
+            ACCOUNT_FIXTURES = Map.of(
+                    "default-account", Account.newBuilder().setAccountId("default-account").setName("Default Account").setActive(true).setCreatedAt(ts).setUpdatedAt(ts).build(),
+                    "valid-account", Account.newBuilder().setAccountId("valid-account").setName("Valid Account").setActive(true).setCreatedAt(ts).setUpdatedAt(ts).build(),
+                    "inactive-account", Account.newBuilder().setAccountId("inactive-account").setName("Inactive Account").setActive(false).setCreatedAt(ts).setUpdatedAt(ts).build()
+            );
+        }
+
         @Override
         public void getAccount(GetAccountRequest request, StreamObserver<GetAccountResponse> responseObserver) {
-            Timestamp ts = Timestamp.newBuilder().setSeconds(Instant.now().getEpochSecond()).build();
-            responseObserver.onNext(GetAccountResponse.newBuilder()
-                    .setAccount(Account.newBuilder()
-                            .setAccountId(request.getAccountId())
-                            .setName("Mock Account")
-                            .setActive(true)
-                            .setCreatedAt(ts)
-                            .setUpdatedAt(ts)
-                            .build())
-                    .build());
-            responseObserver.onCompleted();
+            String accountId = request.getAccountId();
+
+            if (NOT_FOUND_ID.equals(accountId)) {
+                responseObserver.onError(Status.NOT_FOUND
+                        .withDescription("Account not found: " + accountId)
+                        .asRuntimeException());
+                return;
+            }
+
+            Account fixture = ACCOUNT_FIXTURES.get(accountId);
+            if (fixture != null) {
+                responseObserver.onNext(GetAccountResponse.newBuilder().setAccount(fixture).build());
+                responseObserver.onCompleted();
+            } else {
+                responseObserver.onError(Status.NOT_FOUND
+                        .withDescription("Account not found: " + accountId)
+                        .asRuntimeException());
+            }
         }
 
         @Override
