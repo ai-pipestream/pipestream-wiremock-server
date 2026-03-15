@@ -408,8 +408,8 @@ class PipeStepProcessorMockTest {
         assertNotNull(response);
         assertTrue(response.getSuccess());
         assertTrue(response.hasOutputDoc());
-        assertTrue(response.getProcessorLogsList().stream()
-                .anyMatch(log -> log.contains("Parser extracted")));
+        assertTrue(response.getLogEntriesList().stream()
+                .anyMatch(entry -> entry.getMessage().contains("Parser extracted")));
     }
 
     @Test
@@ -422,8 +422,8 @@ class PipeStepProcessorMockTest {
 
         assertNotNull(response);
         assertTrue(response.getSuccess());
-        assertTrue(response.getProcessorLogsList().stream()
-                .anyMatch(log -> log.contains("Chunker created 5 chunks")));
+        assertTrue(response.getLogEntriesList().stream()
+                .anyMatch(entry -> entry.getMessage().contains("Chunker created 5 chunks")));
     }
 
     @Test
@@ -436,8 +436,8 @@ class PipeStepProcessorMockTest {
 
         assertNotNull(response);
         assertTrue(response.getSuccess());
-        assertTrue(response.getProcessorLogsList().stream()
-                .anyMatch(log -> log.contains("10 embeddings with dimension 1536")));
+        assertTrue(response.getLogEntriesList().stream()
+                .anyMatch(entry -> entry.getMessage().contains("10 embeddings with dimension 1536")));
     }
 
     @Test
@@ -450,8 +450,8 @@ class PipeStepProcessorMockTest {
 
         assertNotNull(response);
         assertTrue(response.getSuccess());
-        assertTrue(response.getProcessorLogsList().stream()
-                .anyMatch(log -> log.contains("25 documents to my-index")));
+        assertTrue(response.getLogEntriesList().stream()
+                .anyMatch(entry -> entry.getMessage().contains("25 documents to my-index")));
     }
 
     @Test
@@ -465,8 +465,8 @@ class PipeStepProcessorMockTest {
         assertNotNull(response);
         assertFalse(response.getSuccess());
         assertTrue(response.hasErrorDetails());
-        assertTrue(response.getProcessorLogsList().stream()
-                .anyMatch(log -> log.contains("Processing failed")));
+        assertTrue(response.getLogEntriesList().stream()
+                .anyMatch(entry -> entry.getMessage().contains("Processing failed")));
     }
 
     // ============================================
@@ -562,8 +562,8 @@ class PipeStepProcessorMockTest {
         ProcessDataResponse dataResponse = stub.processData(dataRequest);
 
         assertTrue(dataResponse.getSuccess());
-        assertTrue(dataResponse.getProcessorLogsList().stream()
-                .anyMatch(log -> log.contains("100 documents")));
+        assertTrue(dataResponse.getLogEntriesList().stream()
+                .anyMatch(entry -> entry.getMessage().contains("100 documents")));
     }
 
     @Test

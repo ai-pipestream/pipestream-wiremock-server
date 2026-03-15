@@ -2,6 +2,10 @@ package ai.pipestream.wiremock.client;
 
 import ai.pipestream.data.module.v1.*;
 import ai.pipestream.data.v1.*;
+import ai.pipestream.data.v1.LogEntry;
+import ai.pipestream.data.v1.LogEntrySource;
+import ai.pipestream.data.v1.LogLevel;
+import ai.pipestream.data.v1.ModuleLogOrigin;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.stubbing.StubMapping;
 import com.google.protobuf.Struct;
@@ -378,7 +382,13 @@ public class PipeStepProcessorMock implements ServiceMockInitializer {
         ProcessDataResponse response = ProcessDataResponse.newBuilder()
                 .setSuccess(true)
                 .setOutputDoc(outputDoc)
-                .addProcessorLogs("Parser extracted " + extractedText.length() + " characters")
+                .addLogEntries(LogEntry.newBuilder()
+                        .setSource(LogEntrySource.LOG_ENTRY_SOURCE_MODULE)
+                        .setLevel(LogLevel.LOG_LEVEL_INFO)
+                        .setMessage("Parser extracted " + extractedText.length() + " characters")
+                        .setTimestampEpochMs(System.currentTimeMillis())
+                        .setModule(ModuleLogOrigin.newBuilder().setModuleName("parser").build())
+                        .build())
                 .build();
 
         processorService.stubFor(
@@ -400,7 +410,13 @@ public class PipeStepProcessorMock implements ServiceMockInitializer {
         ProcessDataResponse response = ProcessDataResponse.newBuilder()
                 .setSuccess(true)
                 .setOutputDoc(outputDoc)
-                .addProcessorLogs("Chunker created " + chunkCount + " chunks")
+                .addLogEntries(LogEntry.newBuilder()
+                        .setSource(LogEntrySource.LOG_ENTRY_SOURCE_MODULE)
+                        .setLevel(LogLevel.LOG_LEVEL_INFO)
+                        .setMessage("Chunker created " + chunkCount + " chunks")
+                        .setTimestampEpochMs(System.currentTimeMillis())
+                        .setModule(ModuleLogOrigin.newBuilder().setModuleName("chunker").build())
+                        .build())
                 .build();
 
         processorService.stubFor(
@@ -423,7 +439,13 @@ public class PipeStepProcessorMock implements ServiceMockInitializer {
         ProcessDataResponse response = ProcessDataResponse.newBuilder()
                 .setSuccess(true)
                 .setOutputDoc(outputDoc)
-                .addProcessorLogs("Embedder generated " + chunkCount + " embeddings with dimension " + embeddingDimension)
+                .addLogEntries(LogEntry.newBuilder()
+                        .setSource(LogEntrySource.LOG_ENTRY_SOURCE_MODULE)
+                        .setLevel(LogLevel.LOG_LEVEL_INFO)
+                        .setMessage("Embedder generated " + chunkCount + " embeddings with dimension " + embeddingDimension)
+                        .setTimestampEpochMs(System.currentTimeMillis())
+                        .setModule(ModuleLogOrigin.newBuilder().setModuleName("embedder").build())
+                        .build())
                 .build();
 
         processorService.stubFor(
@@ -441,7 +463,13 @@ public class PipeStepProcessorMock implements ServiceMockInitializer {
     public void mockSinkProcessData(String indexName, int documentCount) {
         ProcessDataResponse response = ProcessDataResponse.newBuilder()
                 .setSuccess(true)
-                .addProcessorLogs("Sink wrote " + documentCount + " documents to " + indexName)
+                .addLogEntries(LogEntry.newBuilder()
+                        .setSource(LogEntrySource.LOG_ENTRY_SOURCE_MODULE)
+                        .setLevel(LogLevel.LOG_LEVEL_INFO)
+                        .setMessage("Sink wrote " + documentCount + " documents to " + indexName)
+                        .setTimestampEpochMs(System.currentTimeMillis())
+                        .setModule(ModuleLogOrigin.newBuilder().setModuleName("sink").build())
+                        .build())
                 .build();
 
         processorService.stubFor(
@@ -465,7 +493,13 @@ public class PipeStepProcessorMock implements ServiceMockInitializer {
         ProcessDataResponse response = ProcessDataResponse.newBuilder()
                 .setSuccess(false)
                 .setErrorDetails(errorDetails)
-                .addProcessorLogs("Processing failed: " + errorMessage)
+                .addLogEntries(LogEntry.newBuilder()
+                        .setSource(LogEntrySource.LOG_ENTRY_SOURCE_MODULE)
+                        .setLevel(LogLevel.LOG_LEVEL_ERROR)
+                        .setMessage("Processing failed: " + errorMessage)
+                        .setTimestampEpochMs(System.currentTimeMillis())
+                        .setModule(ModuleLogOrigin.newBuilder().setModuleName("processor").build())
+                        .build())
                 .build();
 
         processorService.stubFor(
