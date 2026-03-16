@@ -15,6 +15,7 @@ plugins {
     alias(libs.plugins.shadow)
     alias(libs.plugins.proto.toolchain)
     id 'idea'
+    id 'io.quarkus' version '3.32.3'
 }
 
 scmVersion {
@@ -72,6 +73,9 @@ pipestreamProtos {
 }
 
 dependencies {
+    implementation enforcedPlatform("io.quarkus.platform:quarkus-bom:3.32.3")
+    implementation 'io.quarkus:quarkus-arc'
+
     implementation libs.wiremock.core
     implementation(libs.wiremock.grpc.extension.core) {
         exclude group: 'com.google.protobuf', module: 'protobuf-java'
@@ -130,6 +134,7 @@ eclipse {
 }
 
 tasks.named('processResources').configure {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     dependsOn 'generateProtos', 'buildDescriptors'
     from(layout.buildDirectory.dir("descriptors")) {
         into "wiremock/grpc"
@@ -165,6 +170,7 @@ startScripts.dependsOn shadowJar
 def projectDirPath = project.layout.projectDirectory.asFile.absolutePath
 
 tasks.named('processTestResources').configure {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     dependsOn 'generateProtos', 'buildDescriptors', 'copyDescriptorsToResources'
 
     // Copy protobuf descriptors to test resources for WireMock
@@ -357,7 +363,7 @@ jib {
         tags = ['latest']
     }
     container {
-        mainClass = 'ai.pipestream.wiremock.server.Main'
+        mainClass = 'io.quarkus.bootstrap.runner.QuarkusEntryPoint'
         creationTime = 'USE_CURRENT_TIMESTAMP'
         jvmFlags = ['-Djava.security.egd=file:/dev/./urandom']
         ports = ['8080', '50052']
