@@ -12,7 +12,7 @@ netty-codec-http = "4.2.10.Final"
 proto-google-common-protos = "2.66.0"
 junit-jupiter = "6.0.3"
 junit-platform = "6.0.3"
-shadow = "9.3.2"
+shadow = "9.4.0"
 proto-toolchain = "0.7.18"
 
 # Plugins
