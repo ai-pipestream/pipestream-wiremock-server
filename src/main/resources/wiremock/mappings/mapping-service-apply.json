@@ -1,0 +1,16 @@
+{
+  "name": "mapping-service-apply",
+  "request": {
+    "method": "POST",
+    "urlPath": "/ai.pipestream.mapping.v1.MappingService/ApplyMapping"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "grpc-status-name": "OK"
+    },
+    "jsonBody": {
+      "document": {}
+    }
+  }
+}

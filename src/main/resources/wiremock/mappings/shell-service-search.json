@@ -1,0 +1,27 @@
+{
+  "name": "shell-service-search-documents",
+  "request": {
+    "method": "POST",
+    "urlPath": "/ai.pipestream.shell.v1.ShellService/SearchDocuments"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "grpc-status-name": "OK"
+    },
+    "jsonBody": {
+      "results": [
+        {
+          "doc_id": "mock-doc-001",
+          "filename": "mock-result.pdf",
+          "path": "/documents/mock-result.pdf",
+          "mime_type": "application/pdf",
+          "account_id": "acc-001",
+          "connector_id": "conn-001",
+          "storage_key": "s3://mock-bucket/mock-doc-001"
+        }
+      ],
+      "total_count": "1"
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "document-upload-chunk",
+  "request": {
+    "method": "POST",
+    "urlPath": "/ai.pipestream.connector.intake.v1.DocumentUploadService/UploadChunk"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "grpc-status-name": "OK"
+    },
+    "jsonBody": {
+      "file_id": "mock-file-001",
+      "chunk_number": 0,
+      "success": true,
+      "message": "Chunk uploaded successfully"
+    }
+  }
+}
