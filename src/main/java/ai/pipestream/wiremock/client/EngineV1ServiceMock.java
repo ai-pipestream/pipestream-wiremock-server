@@ -1,7 +1,6 @@
 package ai.pipestream.wiremock.client;
 
-import ai.pipestream.data.v1.PipeDoc;
-import ai.pipestream.data.v1.PipeStream;
+import ai.pipestream.data.v1.*;
 import ai.pipestream.engine.v1.*;
 import com.google.protobuf.util.Timestamps;
 import com.github.tomakehurst.wiremock.client.WireMock;
@@ -213,6 +212,9 @@ public class EngineV1ServiceMock implements ServiceMockInitializer {
         ProcessNodeResponse response = ProcessNodeResponse.newBuilder()
                 .setSuccess(true)
                 .setMessage("Node processed successfully")
+                .setModuleId("mock-module")
+                .setProcessingTimeMs(42)
+                .addLogEntries(mockLogEntry("Mock module processed successfully"))
                 .build();
 
         engineService.stubFor(
@@ -231,6 +233,9 @@ public class EngineV1ServiceMock implements ServiceMockInitializer {
                 .setSuccess(true)
                 .setMessage("Node processed successfully")
                 .setCompletedAt(Timestamps.fromMillis(System.currentTimeMillis()))
+                .setModuleId("mock-module")
+                .setProcessingTimeMs(42)
+                .addLogEntries(mockLogEntry("Mock module processed successfully"))
                 .build();
 
         engineService.stubFor(
@@ -255,6 +260,9 @@ public class EngineV1ServiceMock implements ServiceMockInitializer {
                 .setMessage("Node processed successfully")
                 .setCompletedAt(Timestamps.fromMillis(System.currentTimeMillis()))
                 .setOutputDoc(outputDoc)
+                .setModuleId("mock-module")
+                .setProcessingTimeMs(42)
+                .addLogEntries(mockLogEntry("Mock module processed document " + outputDoc.getDocId()))
                 .build();
 
         engineService.stubFor(
@@ -282,6 +290,16 @@ public class EngineV1ServiceMock implements ServiceMockInitializer {
         );
 
         LOG.debug("Configured ProcessNode to return failure: {}", errorMessage);
+    }
+
+    private static LogEntry mockLogEntry(String message) {
+        return LogEntry.newBuilder()
+                .setSource(LogEntrySource.LOG_ENTRY_SOURCE_MODULE)
+                .setLevel(LogLevel.LOG_LEVEL_INFO)
+                .setMessage(message)
+                .setTimestampEpochMs(System.currentTimeMillis())
+                .setModule(ModuleLogOrigin.newBuilder().setModuleName("mock-module").build())
+                .build();
     }
 
     /**
