@@ -215,26 +215,21 @@ class DirectWireMockGrpcServerTest {
         ListServicesResponse response = blockingStub.listServices(request);
 
         assertNotNull(response);
-        assertEquals(2, response.getTotalCount());
-        assertEquals(2, response.getServicesCount());
+        assertEquals(4, response.getTotalCount());
+        assertEquals(4, response.getServicesCount());
         assertTrue(response.hasAsOf(), "Should have as_of timestamp");
 
-        // Verify mock services
-        GetServiceResponse service1 = response.getServices(0);
-        assertEquals("repository", service1.getServiceName());
-        assertEquals("localhost", service1.getHost());
-        assertEquals(8080, service1.getPort());
-        assertTrue(service1.getIsHealthy());
-        assertEquals(1, service1.getHttpEndpointsCount());
-        assertEquals("repository-http-schema", service1.getHttpSchemaArtifactId());
+        // Verify mock services match DirectWireMockGrpcServer.buildListServicesResponse()
+        assertEquals("repository-service", response.getServices(0).getServiceName());
+        assertEquals("account-service", response.getServices(1).getServiceName());
+        assertEquals("opensearch-manager", response.getServices(2).getServiceName());
+        assertEquals("platform-registration-service", response.getServices(3).getServiceName());
 
-        GetServiceResponse service2 = response.getServices(1);
-        assertEquals("account-manager", service2.getServiceName());
-        assertEquals("localhost", service2.getHost());
-        assertEquals(38105, service2.getPort());
-        assertTrue(service2.getIsHealthy());
-        assertEquals(1, service2.getHttpEndpointsCount());
-        assertEquals("account-manager-http-schema", service2.getHttpSchemaArtifactId());
+        // All should be healthy
+        response.getServicesList().forEach(service -> {
+            assertEquals("localhost", service.getHost());
+            assertTrue(service.getIsHealthy());
+        });
     }
 
     @Test

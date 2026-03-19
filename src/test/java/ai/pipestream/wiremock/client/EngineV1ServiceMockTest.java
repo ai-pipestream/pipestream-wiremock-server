@@ -220,29 +220,19 @@ class EngineV1ServiceMockTest {
     }
 
     @Test
-    @DisplayName("Should mock ProcessNode success with updated stream")
-    void testMockProcessNodeSuccessWithStream() {
-        PipeStream stream = PipeStream.newBuilder()
-                .setStreamId("updated-stream-123")
-                .build();
-
-        assertDoesNotThrow(() -> engineMock.mockProcessNodeSuccess(stream));
+    @DisplayName("Should mock ProcessNode success with completed_at timestamp")
+    void testMockProcessNodeSuccessWithTimestamp() {
+        assertDoesNotThrow(() -> engineMock.mockProcessNodeSuccessWithTimestamp());
     }
 
     @Test
-    @DisplayName("Should mock ProcessNode success with metrics")
-    void testMockProcessNodeSuccessWithMetrics() {
-        PipeStream stream = PipeStream.newBuilder()
-                .setStreamId("stream-with-metrics")
+    @DisplayName("Should mock ProcessNode success with output document (test mode)")
+    void testMockProcessNodeSuccessWithOutputDoc() {
+        PipeDoc outputDoc = PipeDoc.newBuilder()
+                .setDocId("processed-doc-123")
                 .build();
 
-        ProcessingMetrics metrics = ProcessingMetrics.newBuilder()
-                .setProcessingTimeMs(100)
-                .build();
-
-        assertDoesNotThrow(() ->
-            engineMock.mockProcessNodeSuccessWithMetrics(stream, metrics)
-        );
+        assertDoesNotThrow(() -> engineMock.mockProcessNodeSuccessWithOutputDoc(outputDoc));
     }
 
     @Test
@@ -294,17 +284,9 @@ class EngineV1ServiceMockTest {
     }
 
     @Test
-    @DisplayName("Should receive ProcessNode success with updated stream via gRPC")
-    void testProcessNodeSuccessWithStreamViaGrpc() {
-        PipeStream updatedStream = PipeStream.newBuilder()
-                .setStreamId("updated-stream-after-processing")
-                .setCurrentNodeId("node-embedder")
-                .setDocument(PipeDoc.newBuilder()
-                        .setDocId("processed-doc")
-                        .build())
-                .build();
-
-        engineMock.mockProcessNodeSuccess(updatedStream);
+    @DisplayName("Should receive ProcessNode success with completed_at via gRPC")
+    void testProcessNodeSuccessWithTimestampViaGrpc() {
+        engineMock.mockProcessNodeSuccessWithTimestamp();
 
         ProcessNodeRequest request = ProcessNodeRequest.newBuilder()
                 .setStream(PipeStream.newBuilder().setStreamId("original-stream").build())
@@ -314,42 +296,30 @@ class EngineV1ServiceMockTest {
 
         assertNotNull(response);
         assertTrue(response.getSuccess());
-        assertTrue(response.hasUpdatedStream());
-        assertEquals("updated-stream-after-processing", response.getUpdatedStream().getStreamId());
-        assertEquals("node-embedder", response.getUpdatedStream().getCurrentNodeId());
+        assertTrue(response.hasCompletedAt());
+        assertTrue(response.getCompletedAt().getSeconds() > 0);
     }
 
     @Test
-    @DisplayName("Should receive ProcessNode success with metrics via gRPC")
-    void testProcessNodeSuccessWithMetricsViaGrpc() {
-        PipeStream updatedStream = PipeStream.newBuilder()
-                .setStreamId("stream-with-metrics")
+    @DisplayName("Should receive ProcessNode success with output document via gRPC (test mode)")
+    void testProcessNodeSuccessWithOutputDocViaGrpc() {
+        PipeDoc outputDoc = PipeDoc.newBuilder()
+                .setDocId("processed-doc-after-module")
                 .build();
 
-        ProcessingMetrics metrics = ProcessingMetrics.newBuilder()
-                .setProcessingTimeMs(150)
-                .setNodeId("test-node")
-                .setModuleId("test-module")
-                .setCacheHit(true)
-                .setHopCount(3)
-                .build();
-
-        engineMock.mockProcessNodeSuccessWithMetrics(updatedStream, metrics);
+        engineMock.mockProcessNodeSuccessWithOutputDoc(outputDoc);
 
         ProcessNodeRequest request = ProcessNodeRequest.newBuilder()
-                .setStream(PipeStream.newBuilder().setStreamId("original").build())
+                .setStream(PipeStream.newBuilder().setStreamId("test-stream").build())
                 .build();
 
         ProcessNodeResponse response = stub.processNode(request);
 
         assertNotNull(response);
         assertTrue(response.getSuccess());
-        assertTrue(response.hasMetrics());
-        assertEquals(150, response.getMetrics().getProcessingTimeMs());
-        assertEquals("test-node", response.getMetrics().getNodeId());
-        assertEquals("test-module", response.getMetrics().getModuleId());
-        assertTrue(response.getMetrics().getCacheHit());
-        assertEquals(3, response.getMetrics().getHopCount());
+        assertTrue(response.hasCompletedAt());
+        assertTrue(response.hasOutputDoc());
+        assertEquals("processed-doc-after-module", response.getOutputDoc().getDocId());
     }
 
     @Test
@@ -526,13 +496,7 @@ class EngineV1ServiceMockTest {
                 .setDocument(doc)
                 .build();
 
-        ProcessingMetrics metrics = ProcessingMetrics.newBuilder()
-                .setProcessingTimeMs(250)
-                .setNodeId(entryNodeId)
-                .setHopCount(1)
-                .build();
-
-        engineMock.mockProcessNodeSuccessWithMetrics(processedStream, metrics);
+        engineMock.mockProcessNodeSuccessWithTimestamp();
 
         // 4. Perform node processing
         ProcessNodeRequest processRequest = ProcessNodeRequest.newBuilder()
@@ -546,8 +510,7 @@ class EngineV1ServiceMockTest {
         ProcessNodeResponse processResponse = stub.processNode(processRequest);
 
         assertTrue(processResponse.getSuccess());
-        assertTrue(processResponse.hasMetrics());
-        assertEquals(250, processResponse.getMetrics().getProcessingTimeMs());
+        assertTrue(processResponse.hasCompletedAt());
     }
 
     @Test
@@ -579,13 +542,7 @@ class EngineV1ServiceMockTest {
     @Test
     @DisplayName("Should support multiple concurrent stream configurations")
     void testMultipleStreamConfigurations() {
-        // Configure mock for success (will be used for all streams)
-        PipeStream updatedStream = PipeStream.newBuilder()
-                .setStreamId("multi-stream-result")
-                .setCurrentNodeId("final-node")
-                .build();
-
-        engineMock.mockProcessNodeSuccess(updatedStream);
+        engineMock.mockProcessNodeSuccessWithTimestamp();
 
         // Process multiple streams
         for (int i = 1; i <= 5; i++) {
@@ -599,7 +556,6 @@ class EngineV1ServiceMockTest {
             ProcessNodeResponse response = stub.processNode(request);
 
             assertTrue(response.getSuccess());
-            assertEquals("multi-stream-result", response.getUpdatedStream().getStreamId());
         }
     }
 }

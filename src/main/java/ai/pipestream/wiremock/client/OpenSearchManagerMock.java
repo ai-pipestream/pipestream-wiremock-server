@@ -86,6 +86,17 @@ public class OpenSearchManagerMock implements ServiceMockInitializer {
                         .willReturn(message(searchResponse))
         );
 
+        // Stub for specific empty query
+        SearchDocumentUploadsResponse emptyResponse = SearchDocumentUploadsResponse.newBuilder()
+                .setTotalCount(0)
+                .build();
+        
+        openSearchManagerService.stubFor(
+                method("SearchDocumentUploads")
+                        .withRequestMessage(WireMockGrpc.equalToMessage(SearchDocumentUploadsRequest.newBuilder().setQuery("empty").build()))
+                        .willReturn(message(emptyResponse))
+        );
+
         // 2. Mock SearchFilesystemMeta
         FilesystemSearchResult fsResult1 = FilesystemSearchResult.newBuilder()
                 .setNodeId(UUID.randomUUID().toString())

@@ -4,6 +4,7 @@ import com.github.tomakehurst.wiremock.WireMockServer;
 import io.grpc.*;
 import io.grpc.protobuf.services.ProtoReflectionServiceV1;
 import io.grpc.stub.StreamObserver;
+import io.grpc.health.v1.*;
 import ai.pipestream.platform.registration.v1.*;
 import com.google.protobuf.Timestamp;
 import org.jboss.logging.Logger;
@@ -93,6 +94,7 @@ public class DirectWireMockGrpcServer {
             throw new IllegalArgumentException("wireMockServer must not be null");
         }
         LOG.infof("Initializing DirectWireMockGrpcServer on port %d with maxInboundMessageSize: %d", grpcPort, maxInboundMessageSize);
+        
         this.grpcServer = ServerBuilder.forPort(grpcPort)
                 .maxInboundMessageSize(maxInboundMessageSize)
                 .intercept(new TestMetadataInterceptor())
@@ -100,6 +102,7 @@ public class DirectWireMockGrpcServer {
                 .addService(new NodeUploadServiceImpl())
                 .addService(new AccountServiceStreamingImpl())
                 .addService(new OpenSearchManagerServiceImpl())
+                .addService(new HealthImpl())
                 .addService(ProtoReflectionServiceV1.newInstance())
                 .build();
     }
@@ -162,6 +165,24 @@ public class DirectWireMockGrpcServer {
         }
     }
 
+    private static class HealthImpl extends HealthGrpc.HealthImplBase {
+        @Override
+        public void check(HealthCheckRequest request, StreamObserver<HealthCheckResponse> responseObserver) {
+            responseObserver.onNext(HealthCheckResponse.newBuilder()
+                    .setStatus(HealthCheckResponse.ServingStatus.SERVING)
+                    .build());
+            responseObserver.onCompleted();
+        }
+
+        @Override
+        public void watch(HealthCheckRequest request, StreamObserver<HealthCheckResponse> responseObserver) {
+            responseObserver.onNext(HealthCheckResponse.newBuilder()
+                    .setStatus(HealthCheckResponse.ServingStatus.SERVING)
+                    .build());
+            // Keep the stream open
+        }
+    }
+
     private static class PlatformRegistrationServiceImpl extends PlatformRegistrationServiceGrpc.PlatformRegistrationServiceImplBase {
 
         private Timestamp currentTimestamp() {
@@ -219,49 +240,58 @@ public class DirectWireMockGrpcServer {
 
         @Override
         public void listServices(ListServicesRequest request, StreamObserver<ListServicesResponse> responseObserver) {
-            ListServicesResponse response = ListServicesResponse.newBuilder()
-                    .addServices(GetServiceResponse.newBuilder()
-                            .setServiceName("repository")
-                            .setServiceId("repo-1")
-                            .setHost("localhost")
-                            .setPort(8080)
-                            .setVersion("1.0.0")
-                            .setIsHealthy(true)
-                            .addHttpEndpoints(HttpEndpoint.newBuilder()
-                                    .setScheme("http")
-                                    .setHost("localhost")
-                                    .setPort(8080)
-                                    .setBasePath("/repository")
-                                    .setHealthPath("/q/health")
-                                    .setTlsEnabled(false)
-                                    .build())
-                            .setHttpSchemaArtifactId("repository-http-schema")
-                            .setHttpSchemaVersion("1.0.0")
-                            .build())
-                    .addServices(GetServiceResponse.newBuilder()
-                            .setServiceName("account-manager")
-                            .setServiceId("account-1")
-                            .setHost("localhost")
-                            .setPort(38105)
-                            .setVersion("1.0.0")
-                            .setIsHealthy(true)
-                            .addHttpEndpoints(HttpEndpoint.newBuilder()
-                                    .setScheme("http")
-                                    .setHost("localhost")
-                                    .setPort(38105)
-                                    .setBasePath("/account-manager")
-                                    .setHealthPath("/q/health")
-                                    .setTlsEnabled(false)
-                                    .build())
-                            .setHttpSchemaArtifactId("account-manager-http-schema")
-                            .setHttpSchemaVersion("1.0.0")
-                            .build())
-                    .setAsOf(currentTimestamp())
-                    .setTotalCount(2)
-                    .build();
-
+            ListServicesResponse response = buildListServicesResponse();
             responseObserver.onNext(response);
             responseObserver.onCompleted();
+        }
+
+        @Override
+        public void watchServices(WatchServicesRequest request, StreamObserver<WatchServicesResponse> responseObserver) {
+            ListServicesResponse services = buildListServicesResponse();
+            WatchServicesResponse response = WatchServicesResponse.newBuilder()
+                    .addAllServices(services.getServicesList())
+                    .setAsOf(currentTimestamp())
+                    .setTotalCount(services.getTotalCount())
+                    .build();
+            
+            responseObserver.onNext(response);
+            // We keep it open but don't send updates for now in this mock
+        }
+
+        private ListServicesResponse buildListServicesResponse() {
+            int mockPort = 50052; // WireMock streaming port
+            return ListServicesResponse.newBuilder()
+                    .addServices(GetServiceResponse.newBuilder()
+                            .setServiceName("repository-service")
+                            .setServiceId("repo-1")
+                            .setHost("localhost")
+                            .setPort(mockPort)
+                            .setIsHealthy(true)
+                            .build())
+                    .addServices(GetServiceResponse.newBuilder()
+                            .setServiceName("account-service")
+                            .setServiceId("account-1")
+                            .setHost("localhost")
+                            .setPort(mockPort)
+                            .setIsHealthy(true)
+                            .build())
+                    .addServices(GetServiceResponse.newBuilder()
+                            .setServiceName("opensearch-manager")
+                            .setServiceId("os-1")
+                            .setHost("localhost")
+                            .setPort(mockPort)
+                            .setIsHealthy(true)
+                            .build())
+                    .addServices(GetServiceResponse.newBuilder()
+                            .setServiceName("platform-registration-service")
+                            .setServiceId("reg-1")
+                            .setHost("localhost")
+                            .setPort(mockPort)
+                            .setIsHealthy(true)
+                            .build())
+                    .setAsOf(currentTimestamp())
+                    .setTotalCount(4)
+                    .build();
         }
 
         @Override
