@@ -17,10 +17,9 @@
 
 FROM registry.access.redhat.com/ubi9-minimal:9.5
 
-# Install Java 21 runtime and unzip/tar for extraction
+# Install Java 21 runtime
 RUN microdnf install -y \
     java-21-openjdk-headless \
-    unzip \
     ca-certificates \
     && microdnf update -y \
     && microdnf clean all \
@@ -29,22 +28,20 @@ RUN microdnf install -y \
 ENV LANGUAGE='en_US:en' \
     JAVA_OPTS_APPEND="-Djava.awt.headless=true"
 
-# Use standard app directory like Jib
 WORKDIR /app
 RUN chown 185:185 /app
 
-# Copy the shadow JAR
-COPY --chown=185:185 build/libs/pipestream-wiremock-server-*-all.jar /app/app.jar
+# Copy the Quarkus runner layout
+COPY --chown=185:185 build/quarkus-app/lib/ /app/lib/
+COPY --chown=185:185 build/quarkus-app/quarkus-run.jar /app/quarkus-run.jar
+COPY --chown=185:185 build/quarkus-app/app/ /app/app/
+COPY --chown=185:185 build/quarkus-app/quarkus/ /app/quarkus/
 
-# Explode the JAR to allow file-system based resource loading if needed
 USER 185
-RUN unzip -q /app/app.jar -d /app && rm /app/app.jar
 
 EXPOSE 8080 50052
 
-# Health check using WireMock admin endpoint
 HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8080/__admin/health || exit 1
 
-# Run with classpath pointing to current directory (exploded app)
-ENTRYPOINT ["java", "-cp", ".", "ai.pipestream.wiremock.server.Main"]
+ENTRYPOINT ["java", "-jar", "/app/quarkus-run.jar"]
