@@ -14,7 +14,10 @@ import org.wiremock.grpc.GrpcExtensionFactory;
 
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 /**
  * Tests for EngineV1ServiceMock.
@@ -67,7 +70,9 @@ class EngineV1ServiceMockTest {
     @Test
     @DisplayName("Should get service name")
     void testGetServiceName() {
-        assertEquals("ai.pipestream.engine.v1.EngineV1Service", engineMock.getServiceName());
+        assertThat(engineMock.getServiceName())
+                .as("service name should match the EngineV1Service proto definition")
+                .isEqualTo("ai.pipestream.engine.v1.EngineV1Service");
     }
 
     @Test
@@ -148,11 +153,11 @@ class EngineV1ServiceMockTest {
 
         IntakeHandoffResponse response = stub.intakeHandoff(request);
 
-        assertNotNull(response);
-        assertTrue(response.getAccepted());
-        assertEquals(streamId, response.getAssignedStreamId());
-        assertEquals(entryNode, response.getEntryNodeId());
-        assertEquals("Stream accepted for processing", response.getMessage());
+        assertThat(response).as("intake handoff response").isNotNull();
+        assertThat(response.getAccepted()).as("handoff should be accepted").isTrue();
+        assertThat(response.getAssignedStreamId()).as("assigned stream ID").isEqualTo(streamId);
+        assertThat(response.getEntryNodeId()).as("entry node").isEqualTo(entryNode);
+        assertThat(response.getMessage()).as("acceptance message").isEqualTo("Stream accepted for processing");
     }
 
     @Test
@@ -168,9 +173,9 @@ class EngineV1ServiceMockTest {
 
         IntakeHandoffResponse response = stub.intakeHandoff(request);
 
-        assertNotNull(response);
-        assertFalse(response.getAccepted());
-        assertEquals(rejectMessage, response.getMessage());
+        assertThat(response).as("intake handoff response").isNotNull();
+        assertThat(response.getAccepted()).as("handoff should be rejected").isFalse();
+        assertThat(response.getMessage()).as("rejection message").isEqualTo(rejectMessage);
     }
 
     @Test
@@ -182,13 +187,14 @@ class EngineV1ServiceMockTest {
                 .setStream(PipeStream.newBuilder().setStreamId("stream-1").build())
                 .build();
 
-        StatusRuntimeException exception = assertThrows(
-                StatusRuntimeException.class,
-                () -> stub.intakeHandoff(request)
-        );
-
-        assertEquals(io.grpc.Status.Code.UNAVAILABLE, exception.getStatus().getCode());
-        assertTrue(exception.getMessage().contains("temporarily unavailable"));
+        assertThatThrownBy(() -> stub.intakeHandoff(request))
+                .as("engine unavailable should throw gRPC UNAVAILABLE")
+                .isInstanceOf(StatusRuntimeException.class)
+                .satisfies(thrown -> {
+                    StatusRuntimeException sre = (StatusRuntimeException) thrown;
+                    assertThat(sre.getStatus().getCode()).isEqualTo(io.grpc.Status.Code.UNAVAILABLE);
+                    assertThat(sre.getMessage()).contains("temporarily unavailable");
+                });
     }
 
     @Test
@@ -203,10 +209,10 @@ class EngineV1ServiceMockTest {
 
         IntakeHandoffResponse response = stub.intakeHandoff(request);
 
-        assertNotNull(response);
-        assertFalse(response.getAccepted());
-        assertTrue(response.getMessage().contains("Queue full"));
-        assertEquals(queueDepth, response.getQueueDepth());
+        assertThat(response).as("queue full response").isNotNull();
+        assertThat(response.getAccepted()).as("handoff should be rejected when queue full").isFalse();
+        assertThat(response.getMessage()).as("rejection reason").contains("Queue full");
+        assertThat(response.getQueueDepth()).as("reported queue depth").isEqualTo(queueDepth);
     }
 
     // ============================================
@@ -278,9 +284,9 @@ class EngineV1ServiceMockTest {
 
         ProcessNodeResponse response = stub.processNode(request);
 
-        assertNotNull(response);
-        assertTrue(response.getSuccess());
-        assertEquals("Node processed successfully", response.getMessage());
+        assertThat(response).as("processNode response").isNotNull();
+        assertThat(response.getSuccess()).as("processNode should succeed").isTrue();
+        assertThat(response.getMessage()).as("success message").isEqualTo("Node processed successfully");
     }
 
     @Test
@@ -294,10 +300,10 @@ class EngineV1ServiceMockTest {
 
         ProcessNodeResponse response = stub.processNode(request);
 
-        assertNotNull(response);
-        assertTrue(response.getSuccess());
-        assertTrue(response.hasCompletedAt());
-        assertTrue(response.getCompletedAt().getSeconds() > 0);
+        assertThat(response).as("processNode response").isNotNull();
+        assertThat(response.getSuccess()).as("processNode should succeed").isTrue();
+        assertThat(response.hasCompletedAt()).as("response should include completed_at timestamp").isTrue();
+        assertThat(response.getCompletedAt().getSeconds()).as("completed_at should be a valid epoch time").isPositive();
     }
 
     @Test
@@ -315,11 +321,11 @@ class EngineV1ServiceMockTest {
 
         ProcessNodeResponse response = stub.processNode(request);
 
-        assertNotNull(response);
-        assertTrue(response.getSuccess());
-        assertTrue(response.hasCompletedAt());
-        assertTrue(response.hasOutputDoc());
-        assertEquals("processed-doc-after-module", response.getOutputDoc().getDocId());
+        assertThat(response).as("processNode response").isNotNull();
+        assertThat(response.getSuccess()).as("processNode should succeed").isTrue();
+        assertThat(response.hasCompletedAt()).as("response should include completed_at").isTrue();
+        assertThat(response.hasOutputDoc()).as("test mode response should include output document").isTrue();
+        assertThat(response.getOutputDoc().getDocId()).as("output doc ID should match").isEqualTo("processed-doc-after-module");
     }
 
     @Test
@@ -334,9 +340,9 @@ class EngineV1ServiceMockTest {
 
         ProcessNodeResponse response = stub.processNode(request);
 
-        assertNotNull(response);
-        assertFalse(response.getSuccess());
-        assertEquals(errorMessage, response.getMessage());
+        assertThat(response).as("processNode failure response").isNotNull();
+        assertThat(response.getSuccess()).as("processNode should report failure").isFalse();
+        assertThat(response.getMessage()).as("error message should describe the failure").isEqualTo(errorMessage);
     }
 
     @Test
@@ -348,12 +354,11 @@ class EngineV1ServiceMockTest {
                 .setStream(PipeStream.newBuilder().setStreamId("stream-1").build())
                 .build();
 
-        StatusRuntimeException exception = assertThrows(
-                StatusRuntimeException.class,
-                () -> stub.processNode(request)
-        );
-
-        assertEquals(io.grpc.Status.Code.UNAVAILABLE, exception.getStatus().getCode());
+        assertThatThrownBy(() -> stub.processNode(request))
+                .as("processNode should throw UNAVAILABLE")
+                .isInstanceOf(StatusRuntimeException.class)
+                .satisfies(thrown -> assertThat(((StatusRuntimeException) thrown).getStatus().getCode())
+                        .isEqualTo(io.grpc.Status.Code.UNAVAILABLE));
     }
 
     @Test
@@ -366,13 +371,14 @@ class EngineV1ServiceMockTest {
                 .setStream(PipeStream.newBuilder().setStreamId("stream-1").build())
                 .build();
 
-        StatusRuntimeException exception = assertThrows(
-                StatusRuntimeException.class,
-                () -> stub.processNode(request)
-        );
-
-        assertEquals(io.grpc.Status.Code.INTERNAL, exception.getStatus().getCode());
-        assertTrue(exception.getMessage().contains(errorMessage));
+        assertThatThrownBy(() -> stub.processNode(request))
+                .as("processNode should throw INTERNAL error")
+                .isInstanceOf(StatusRuntimeException.class)
+                .satisfies(thrown -> {
+                    StatusRuntimeException sre = (StatusRuntimeException) thrown;
+                    assertThat(sre.getStatus().getCode()).isEqualTo(io.grpc.Status.Code.INTERNAL);
+                    assertThat(sre.getMessage()).contains(errorMessage);
+                });
     }
 
     // ============================================
@@ -424,8 +430,8 @@ class EngineV1ServiceMockTest {
 
         GetHealthResponse response = stub.getHealth(request);
 
-        assertNotNull(response);
-        assertEquals(EngineHealth.ENGINE_HEALTH_HEALTHY, response.getHealth());
+        assertThat(response).as("health response").isNotNull();
+        assertThat(response.getHealth()).as("engine should report healthy").isEqualTo(EngineHealth.ENGINE_HEALTH_HEALTHY);
     }
 
     @Test
@@ -437,8 +443,8 @@ class EngineV1ServiceMockTest {
 
         GetHealthResponse response = stub.getHealth(request);
 
-        assertNotNull(response);
-        assertEquals(EngineHealth.ENGINE_HEALTH_UNHEALTHY, response.getHealth());
+        assertThat(response).as("health response").isNotNull();
+        assertThat(response.getHealth()).as("engine should report unhealthy").isEqualTo(EngineHealth.ENGINE_HEALTH_UNHEALTHY);
     }
 
     // ============================================
@@ -486,8 +492,8 @@ class EngineV1ServiceMockTest {
 
         IntakeHandoffResponse intakeResponse = stub.intakeHandoff(intakeRequest);
 
-        assertTrue(intakeResponse.getAccepted());
-        assertEquals(streamId, intakeResponse.getAssignedStreamId());
+        assertThat(intakeResponse.getAccepted()).as("intake handoff should be accepted").isTrue();
+        assertThat(intakeResponse.getAssignedStreamId()).as("assigned stream ID").isEqualTo(streamId);
 
         // 3. Set up mock for node processing
         PipeStream processedStream = PipeStream.newBuilder()
@@ -509,8 +515,8 @@ class EngineV1ServiceMockTest {
 
         ProcessNodeResponse processResponse = stub.processNode(processRequest);
 
-        assertTrue(processResponse.getSuccess());
-        assertTrue(processResponse.hasCompletedAt());
+        assertThat(processResponse.getSuccess()).as("node processing should succeed").isTrue();
+        assertThat(processResponse.hasCompletedAt()).as("response should include completed_at").isTrue();
     }
 
     @Test
@@ -524,11 +530,11 @@ class EngineV1ServiceMockTest {
                 .build();
 
         // First attempt should fail
-        StatusRuntimeException exception = assertThrows(
-                StatusRuntimeException.class,
-                () -> stub.processNode(request)
-        );
-        assertEquals(io.grpc.Status.Code.UNAVAILABLE, exception.getStatus().getCode());
+        assertThatThrownBy(() -> stub.processNode(request))
+                .as("first attempt should fail with UNAVAILABLE")
+                .isInstanceOf(StatusRuntimeException.class)
+                .satisfies(thrown -> assertThat(((StatusRuntimeException) thrown).getStatus().getCode())
+                        .isEqualTo(io.grpc.Status.Code.UNAVAILABLE));
 
         // 2. Reset and configure for success (simulating retry)
         engineMock.reset();
@@ -536,7 +542,7 @@ class EngineV1ServiceMockTest {
 
         // Second attempt should succeed
         ProcessNodeResponse response = stub.processNode(request);
-        assertTrue(response.getSuccess());
+        assertThat(response.getSuccess()).as("retry attempt should succeed").isTrue();
     }
 
     @Test
@@ -555,7 +561,9 @@ class EngineV1ServiceMockTest {
 
             ProcessNodeResponse response = stub.processNode(request);
 
-            assertTrue(response.getSuccess());
+            assertThat(response.getSuccess())
+                    .as("stream-%d should succeed", i)
+                    .isTrue();
         }
     }
 }
