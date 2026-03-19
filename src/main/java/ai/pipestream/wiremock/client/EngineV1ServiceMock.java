@@ -1,7 +1,9 @@
 package ai.pipestream.wiremock.client;
 
+import ai.pipestream.data.v1.PipeDoc;
 import ai.pipestream.data.v1.PipeStream;
 import ai.pipestream.engine.v1.*;
+import com.google.protobuf.util.Timestamps;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -222,15 +224,13 @@ public class EngineV1ServiceMock implements ServiceMockInitializer {
     }
 
     /**
-     * Mock ProcessNode to return success with an updated stream.
-     *
-     * @param updatedStream The updated PipeStream to return
+     * Mock ProcessNode to return success with a completed_at timestamp.
      */
-    public void mockProcessNodeSuccess(PipeStream updatedStream) {
+    public void mockProcessNodeSuccessWithTimestamp() {
         ProcessNodeResponse response = ProcessNodeResponse.newBuilder()
                 .setSuccess(true)
                 .setMessage("Node processed successfully")
-                .setUpdatedStream(updatedStream)
+                .setCompletedAt(Timestamps.fromMillis(System.currentTimeMillis()))
                 .build();
 
         engineService.stubFor(
@@ -238,21 +238,23 @@ public class EngineV1ServiceMock implements ServiceMockInitializer {
                         .willReturn(message(response))
         );
 
-        LOG.debug("Configured ProcessNode to return success with updated stream");
+        LOG.debug("Configured ProcessNode to return success with timestamp");
     }
 
     /**
-     * Mock ProcessNode to return success with metrics.
+     * Mock ProcessNode to return success with an output document (test mode).
+     * <p>
+     * Simulates the engine's test-mode behavior where the processed document
+     * is returned in output_doc for chain test document chaining.
      *
-     * @param updatedStream The updated PipeStream to return
-     * @param metrics       Processing metrics
+     * @param outputDoc The processed document to return
      */
-    public void mockProcessNodeSuccessWithMetrics(PipeStream updatedStream, ProcessingMetrics metrics) {
+    public void mockProcessNodeSuccessWithOutputDoc(PipeDoc outputDoc) {
         ProcessNodeResponse response = ProcessNodeResponse.newBuilder()
                 .setSuccess(true)
                 .setMessage("Node processed successfully")
-                .setUpdatedStream(updatedStream)
-                .setMetrics(metrics)
+                .setCompletedAt(Timestamps.fromMillis(System.currentTimeMillis()))
+                .setOutputDoc(outputDoc)
                 .build();
 
         engineService.stubFor(
@@ -260,7 +262,7 @@ public class EngineV1ServiceMock implements ServiceMockInitializer {
                         .willReturn(message(response))
         );
 
-        LOG.debug("Configured ProcessNode to return success with metrics");
+        LOG.debug("Configured ProcessNode to return success with output document");
     }
 
     /**

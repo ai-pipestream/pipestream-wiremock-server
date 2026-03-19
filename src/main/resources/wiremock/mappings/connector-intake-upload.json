@@ -1,0 +1,18 @@
+{
+  "name": "connector-intake-upload",
+  "request": {
+    "method": "POST",
+    "urlPath": "/ai.pipestream.connector.intake.v1.ConnectorIntakeService/UploadPipeDoc"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "grpc-status-name": "OK"
+    },
+    "jsonBody": {
+      "success": true,
+      "doc_id": "mock-intake-doc-001",
+      "message": "Document accepted for processing"
+    }
+  }
+}

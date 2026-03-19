@@ -1,0 +1,22 @@
+{
+  "name": "pipeline-graph-create-datasource-instance",
+  "request": {
+    "method": "POST",
+    "urlPath": "/ai.pipestream.engine.v1.PipelineGraphService/CreateDatasourceInstance"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "grpc-status-name": "OK"
+    },
+    "jsonBody": {
+      "success": true,
+      "message": "Datasource instance created",
+      "instance": {
+        "datasource_instance_id": "mock-graph-001:1:ds-001",
+        "datasource_id": "ds-001",
+        "entry_node_id": "entry-node-001"
+      }
+    }
+  }
+}

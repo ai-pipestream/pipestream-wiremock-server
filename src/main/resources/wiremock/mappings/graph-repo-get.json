@@ -1,0 +1,22 @@
+{
+  "name": "graph-repo-get-graph",
+  "request": {
+    "method": "POST",
+    "urlPath": "/ai.pipestream.repository.v1.GraphRepositoryService/GetGraph"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "grpc-status-name": "OK"
+    },
+    "jsonBody": {
+      "graph": {
+        "graph_id": "mock-graph-001",
+        "name": "default-pipeline",
+        "version": 1,
+        "nodes": [],
+        "edges": []
+      }
+    }
+  }
+}

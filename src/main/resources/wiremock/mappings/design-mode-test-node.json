@@ -1,0 +1,18 @@
+{
+  "name": "design-mode-test-node",
+  "request": {
+    "method": "POST",
+    "urlPath": "/ai.pipestream.design.v1.DesignModeService/TestNode"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "grpc-status-name": "OK"
+    },
+    "jsonBody": {
+      "success": true,
+      "message": "Node test completed",
+      "simulated_processing_time_ms": "42"
+    }
+  }
+}

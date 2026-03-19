@@ -1,0 +1,18 @@
+{
+  "name": "opensearch-ingestion-stream-documents",
+  "request": {
+    "method": "POST",
+    "urlPath": "/ai.pipestream.ingestion.v1.OpenSearchIngestionService/StreamDocuments"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "grpc-status-name": "OK"
+    },
+    "jsonBody": {
+      "documents_ingested": 1,
+      "success": true,
+      "message": "Documents streamed to OpenSearch successfully"
+    }
+  }
+}

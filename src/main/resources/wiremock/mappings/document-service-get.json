@@ -1,0 +1,25 @@
+{
+  "name": "document-service-get",
+  "request": {
+    "method": "POST",
+    "urlPath": "/ai.pipestream.repository.v1.DocumentService/Get"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "grpc-status-name": "OK"
+    },
+    "jsonBody": {
+      "doc_id": "mock-doc-001",
+      "title": "Mock Document",
+      "filename": "mock-doc.pdf",
+      "content_type": "application/pdf",
+      "size_bytes": "1024",
+      "status": "PROCESSED",
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z",
+      "account_id": "acc-001",
+      "datasource_id": "ds-001"
+    }
+  }
+}

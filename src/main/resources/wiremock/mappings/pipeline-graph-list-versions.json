@@ -1,0 +1,31 @@
+{
+  "name": "pipeline-graph-list-versions",
+  "request": {
+    "method": "POST",
+    "urlPath": "/ai.pipestream.engine.v1.PipelineGraphService/ListGraphVersions"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "grpc-status-name": "OK"
+    },
+    "jsonBody": {
+      "versions": [
+        {
+          "graph": {
+            "graph_id": "mock-graph-001",
+            "cluster_id": "test-cluster",
+            "name": "default-pipeline",
+            "nodes": [],
+            "edges": []
+          },
+          "id": "mock-uuid-001",
+          "is_active": true,
+          "created_at": "2026-01-01T00:00:00Z",
+          "created_by": "admin"
+        }
+      ],
+      "total_count": 1
+    }
+  }
+}

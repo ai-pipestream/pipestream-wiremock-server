@@ -70,39 +70,48 @@ public class PlatformRegistrationServiceMock implements ServiceMockInitializer {
 
         LOG.info("Initializing default PlatformRegistrationService stubs");
 
+        // Use the WireMock streaming port for all mocked services
+        int mockPort = 50052;
+
         // Register default parser modules with PARSER capability
         registerModule("tika-parser", "tika-parser-service-1",
-                "localhost", 50053,
+                "localhost", mockPort,
                 List.of("PARSER"),
                 Map.of("input_format", "binary", "output_format", "pipedoc"));
 
         registerModule("docling-parser", "docling-parser-service-1",
-                "localhost", 50054,
+                "localhost", mockPort,
                 List.of("PARSER"),
                 Map.of("input_format", "binary", "output_format", "structured"));
 
-        // Register chunker modules (no special capabilities)
+        // Register chunker modules
         registerModule("text-chunker", "text-chunker-service-1",
-                "localhost", 50055,
+                "localhost", mockPort,
                 List.of(),
                 Map.of("chunk_size", "512", "overlap", "50"));
 
         registerModule("semantic-chunker", "semantic-chunker-service-1",
-                "localhost", 50056,
+                "localhost", mockPort,
                 List.of(),
                 Map.of("model", "sentence-transformers"));
 
-        // Register embedder modules (no special capabilities)
+        // Register embedder modules
         registerModule("openai-embedder", "openai-embedder-service-1",
-                "localhost", 50057,
+                "localhost", mockPort,
                 List.of(),
                 Map.of("model", "text-embedding-ada-002", "dimensions", "1536"));
 
         // Register sink modules with SINK capability
         registerModule("opensearch-sink", "opensearch-sink-service-1",
-                "localhost", 50058,
+                "localhost", mockPort,
                 List.of("SINK"),
                 Map.of("index", "documents"));
+
+        // Register core services
+        registerService("account-service", "account-service-1", "localhost", mockPort, ServiceType.SERVICE_TYPE_SERVICE);
+        registerService("repository-service", "repository-service-1", "localhost", mockPort, ServiceType.SERVICE_TYPE_SERVICE);
+        registerService("opensearch-manager", "opensearch-manager-1", "localhost", mockPort, ServiceType.SERVICE_TYPE_SERVICE);
+        registerService("platform-registration-service", "platform-registration-1", "localhost", mockPort, ServiceType.SERVICE_TYPE_SERVICE);
 
         // Set up default stubs
         setupDefaultStubs();
@@ -161,11 +170,38 @@ public class PlatformRegistrationServiceMock implements ServiceMockInitializer {
     // ============================================
 
     /**
+     * Mock WatchServices to return the current list of services.
+     */
+    public void mockWatchServices() {
+        Instant now = Instant.now();
+        Timestamp timestamp = Timestamp.newBuilder()
+                .setSeconds(now.getEpochSecond())
+                .setNanos(now.getNano())
+                .build();
+
+        WatchServicesResponse.Builder responseBuilder = WatchServicesResponse.newBuilder()
+                .setAsOf(timestamp);
+
+        for (ServiceInfo serviceInfo : registeredServices.values()) {
+            responseBuilder.addServices(buildGetServiceResponse(serviceInfo));
+        }
+        
+        responseBuilder.setTotalCount(registeredServices.size());
+
+        registrationService.stubFor(
+                method("WatchServices")
+                        .willReturn(message(responseBuilder.build()))
+        );
+    }
+
+    /**
      * Set up default stubs.
      */
     private void setupDefaultStubs() {
         // Set up ListPlatformModules to return all registered modules
         mockListPlatformModules();
+        mockListServices();
+        mockWatchServices();
     }
 
     /**

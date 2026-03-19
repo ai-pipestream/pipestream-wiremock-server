@@ -1,0 +1,24 @@
+{
+  "name": "sidecar-mgmt-get-leases",
+  "request": {
+    "method": "POST",
+    "urlPath": "/ai.pipestream.engine.sidecar.v1.SidecarManagementService/GetLeases"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "grpc-status-name": "OK"
+    },
+    "jsonBody": {
+      "leases": [
+        {
+          "topic": "intake-topic-001",
+          "type": "INTAKE",
+          "current_offset": "100",
+          "status": "ACTIVE",
+          "retry_count": 0
+        }
+      ]
+    }
+  }
+}

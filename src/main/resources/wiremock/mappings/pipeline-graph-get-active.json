@@ -1,0 +1,27 @@
+{
+  "name": "pipeline-graph-get-active",
+  "request": {
+    "method": "POST",
+    "urlPath": "/ai.pipestream.engine.v1.PipelineGraphService/GetActiveGraph"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "grpc-status-name": "OK"
+    },
+    "jsonBody": {
+      "graph": {
+        "graph_id": "mock-graph-001",
+        "cluster_id": "test-cluster",
+        "name": "default-pipeline",
+        "nodes": [],
+        "edges": []
+      },
+      "id": "mock-uuid-001",
+      "is_active": true,
+      "created_by": "admin",
+      "created_at": "2026-01-01T00:00:00Z",
+      "found": true
+    }
+  }
+}

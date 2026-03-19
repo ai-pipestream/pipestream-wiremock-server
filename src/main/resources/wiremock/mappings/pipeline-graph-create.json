@@ -1,0 +1,25 @@
+{
+  "name": "pipeline-graph-create",
+  "request": {
+    "method": "POST",
+    "urlPath": "/ai.pipestream.engine.v1.PipelineGraphService/CreateGraph"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "grpc-status-name": "OK"
+    },
+    "jsonBody": {
+      "graph": {
+        "graph_id": "mock-graph-001",
+        "cluster_id": "test-cluster",
+        "name": "default-pipeline",
+        "nodes": [],
+        "edges": []
+      },
+      "id": "mock-uuid-001",
+      "is_active": false,
+      "created_at": "2026-01-01T00:00:00Z"
+    }
+  }
+}

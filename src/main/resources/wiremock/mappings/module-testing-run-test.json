@@ -1,0 +1,19 @@
+{
+  "name": "module-testing-run-test",
+  "request": {
+    "method": "POST",
+    "urlPath": "/ai.pipestream.testing.harness.v1.ModuleTestingSidecarService/RunModuleTest"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "grpc-status-name": "OK"
+    },
+    "jsonBody": {
+      "success": true,
+      "message": "Module test completed successfully",
+      "duration_ms": "150",
+      "elapsed_ms": "150"
+    }
+  }
+}

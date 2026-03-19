@@ -1,0 +1,21 @@
+{
+  "name": "connector-registration-get-schema",
+  "request": {
+    "method": "POST",
+    "urlPath": "/ai.pipestream.connector.intake.v1.ConnectorRegistrationService/GetConnectorConfigSchema"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "grpc-status-name": "OK"
+    },
+    "jsonBody": {
+      "schema": {
+        "schema_id": "mock-schema-001",
+        "connector_id": "generic",
+        "schema_version": "1.0.0",
+        "created_by": "admin"
+      }
+    }
+  }
+}

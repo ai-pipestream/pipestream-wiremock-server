@@ -1,0 +1,19 @@
+{
+  "name": "document-service-save",
+  "request": {
+    "method": "POST",
+    "urlPath": "/ai.pipestream.repository.v1.DocumentService/Save"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "grpc-status-name": "OK"
+    },
+    "jsonBody": {
+      "node_id": "mock-node-001",
+      "doc_id": "mock-doc-001",
+      "s3_key": "s3://mock-bucket/mock-doc-001",
+      "saved_at": "2026-01-01T00:00:00Z"
+    }
+  }
+}

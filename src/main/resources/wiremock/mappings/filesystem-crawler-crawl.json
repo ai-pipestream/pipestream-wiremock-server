@@ -1,0 +1,20 @@
+{
+  "name": "filesystem-crawler-crawl-directory",
+  "request": {
+    "method": "POST",
+    "urlPath": "/ai.pipestream.repository.crawler.v1.FilesystemCrawlerService/CrawlDirectory"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "grpc-status-name": "OK"
+    },
+    "jsonBody": {
+      "files_found": 10,
+      "files_processed": 10,
+      "files_failed": 0,
+      "processed_files": ["/mock/path/file1.txt", "/mock/path/file2.pdf"],
+      "failed_files": []
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "semantic-embedder-list-models",
+  "request": {
+    "method": "POST",
+    "urlPath": "/ai.pipestream.semantic.v1.SemanticEmbedderService/ListEmbeddingModels"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "grpc-status-name": "OK"
+    },
+    "jsonBody": {
+      "models": [
+        {
+          "model_name": "all-MiniLM-L6-v2",
+          "dimension": 384,
+          "max_tokens": 512
+        },
+        {
+          "model_name": "e5-base-v2",
+          "dimension": 768,
+          "max_tokens": 512
+        }
+      ]
+    }
+  }
+}

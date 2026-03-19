@@ -1,0 +1,23 @@
+{
+  "name": "graph-repo-list-graphs",
+  "request": {
+    "method": "POST",
+    "urlPath": "/ai.pipestream.repository.v1.GraphRepositoryService/ListGraphs"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "grpc-status-name": "OK"
+    },
+    "jsonBody": {
+      "graphs": [
+        {
+          "graph_id": "mock-graph-001",
+          "name": "default-pipeline",
+          "version": 1
+        }
+      ],
+      "total_count": 1
+    }
+  }
+}
