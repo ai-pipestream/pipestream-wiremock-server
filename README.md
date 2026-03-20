@@ -11,6 +11,10 @@ This project is distributed as a Docker container and is critical for integratio
 | **Docker Image** | GitHub Container Registry (GHCR) | `ghcr.io/ai-pipestream/pipestream-wiremock-server:latest` |
 | **JAR** | Maven Central | `ai.pipestream:pipestream-wiremock-server` |
 
+### gRPC descriptor (`services.dsc`)
+
+The WireMock gRPC extension loads `wiremock/grpc/services.dsc` from the runtime classpath. That file is **produced by the build** (`buildDescriptors` → `processResources`). Do **not** commit a copy under `src/main/resources/wiremock/grpc/`—it would shadow the generated file (Gradle `duplicatesStrategy = EXCLUDE` keeps the first resource) and leave **new RPCs** (for example `DeletePipeDoc`) as `UNIMPLEMENTED` until the stale blob is removed. After changing protos, run `./gradlew clean fetchProtos buildDescriptors` before `quarkusRun` or Docker builds.
+
 ## Architecture
 
 This application runs two servers simultaneously:
