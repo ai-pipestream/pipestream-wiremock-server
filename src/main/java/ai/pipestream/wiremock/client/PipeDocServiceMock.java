@@ -11,9 +11,12 @@ import org.slf4j.LoggerFactory;
 import org.wiremock.grpc.dsl.WireMockGrpc;
 import org.wiremock.grpc.dsl.WireMockGrpcService;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static org.wiremock.grpc.dsl.WireMockGrpc.method;
 import static org.wiremock.grpc.dsl.WireMockGrpc.message;
@@ -24,6 +27,9 @@ import static org.wiremock.grpc.dsl.WireMockGrpc.message;
  * This mock supports testing of document hydration scenarios for the Kafka Sidecar and Engine including:
  * <ul>
  *   <li><b>GetPipeDocByReference</b>: Return PipeDoc for a given DocumentReference</li>
+ *   <li><b>GetPipeDoc</b>: Return PipeDoc by repository node id</li>
+ *   <li><b>DeletePipeDoc</b>: Logical delete outcomes ({@code REMOVED}, {@code NOTHING_TO_REMOVE})</li>
+ *   <li><b>ListPipeDocs</b>: Paginated metadata listing</li>
  *   <li><b>GetBlob</b>: Return blob binary data for a given FileStorageReference (Level 2 hydration)</li>
  *   <li><b>Document/blob not found</b>: Return NOT_FOUND status for missing documents/blobs</li>
  *   <li><b>Transient failures</b>: Return UNAVAILABLE for retry testing</li>
@@ -50,6 +56,9 @@ import static org.wiremock.grpc.dsl.WireMockGrpc.message;
  * // Mock an unavailable scenario for retry testing
  * mock.mockGetByReferenceUnavailable();
  * mock.mockGetBlobUnavailable();
+ *
+ * // Logical delete (use ai.pipestream.wiremock.testing.PipeDocGrpcFixtures for requests)
+ * mock.mockDeletePipeDocRemoved("doc-1", "acct", "datasource-1", "node-uuid-1");
  * }</pre>
  * <p>
  * This class implements {@link ServiceMockInitializer} and will be automatically
@@ -76,6 +85,7 @@ public class PipeDocServiceMock implements ServiceMockInitializer {
      */
     public PipeDocServiceMock(WireMock wireMock) {
         this.pipeDocService = new WireMockGrpcService(wireMock, SERVICE_NAME);
+        setupDefaultStubs();
     }
 
     /**
@@ -181,6 +191,29 @@ public class PipeDocServiceMock implements ServiceMockInitializer {
                 method("GetBlob")
                         .willReturn(WireMockGrpc.Status.NOT_FOUND, "Blob not found")
         );
+
+        pipeDocService.stubFor(
+                method("GetPipeDoc")
+                        .willReturn(WireMockGrpc.Status.NOT_FOUND, "PipeDoc node not found")
+        );
+
+        ListPipeDocsResponse emptyList = ListPipeDocsResponse.newBuilder()
+                .setTotalCount(0)
+                .build();
+        pipeDocService.stubFor(
+                method("ListPipeDocs")
+                        .willReturn(message(emptyList))
+        );
+
+        DeletePipeDocResponse defaultDelete = DeletePipeDocResponse.newBuilder()
+                .setOutcome(DeletePipeDocOutcome.DELETE_PIPE_DOC_OUTCOME_NOTHING_TO_REMOVE)
+                .setPipedocsRemoved(0)
+                .setMessage("No matching DeletePipeDoc stub")
+                .build();
+        pipeDocService.stubFor(
+                method("DeletePipeDoc")
+                        .willReturn(message(defaultDelete))
+        );
     }
 
     /**
@@ -206,7 +239,7 @@ public class PipeDocServiceMock implements ServiceMockInitializer {
                 .setRetrievedAtEpochMs(System.currentTimeMillis())
                 .build();
 
-        // Match request by docId+accountId, ignoring optional fields like source_node_id.
+        // Match request by docId+accountId, ignoring optional fields like graph_address_id.
         // WireMockGrpc.equalToMessage uses WireMock.equalToJson(json, true, false):
         // - ignoreArrayOrder = true
         // - ignoreExtraElements = false
@@ -584,6 +617,162 @@ public class PipeDocServiceMock implements ServiceMockInitializer {
     }
 
     // ============================================
+    // GetPipeDoc (by node id) Mocks
+    // ============================================
+
+    /**
+     * Stub GetPipeDoc for a specific repository node id.
+     */
+    public void mockGetPipeDoc(String nodeId, PipeDoc pipeDoc, String responseNodeId, String drive) {
+        GetPipeDocRequest request = GetPipeDocRequest.newBuilder()
+                .setNodeId(nodeId)
+                .build();
+
+        GetPipeDocResponse response = GetPipeDocResponse.newBuilder()
+                .setPipedoc(pipeDoc)
+                .setNodeId(responseNodeId)
+                .setDrive(drive)
+                .setSizeBytes(pipeDoc.getSerializedSize())
+                .setRetrievedAtEpochMs(System.currentTimeMillis())
+                .build();
+
+        pipeDocService.stubFor(
+                method("GetPipeDoc")
+                        .withRequestMessage(WireMockGrpc.equalToMessage(request))
+                        .willReturn(message(response))
+        );
+    }
+
+    /**
+     * Stub GetPipeDoc to return NOT_FOUND for a node id.
+     */
+    public void mockGetPipeDocNotFound(String nodeId) {
+        GetPipeDocRequest request = GetPipeDocRequest.newBuilder()
+                .setNodeId(nodeId)
+                .build();
+
+        pipeDocService.stubFor(
+                method("GetPipeDoc")
+                        .withRequestMessage(WireMockGrpc.equalToMessage(request))
+                        .willReturn(WireMockGrpc.Status.NOT_FOUND, "PipeDoc not found: " + nodeId)
+        );
+    }
+
+    // ============================================
+    // DeletePipeDoc Mocks
+    // ============================================
+
+    /**
+     * Stub DeletePipeDoc for a logical-document command. Request matching ignores extra JSON fields
+     * (e.g. {@code purge_storage}) so clients can send defaults without brittle stubs.
+     *
+     * @param message Optional message (may be empty)
+     */
+    public void mockDeletePipeDocLogical(
+            String docId,
+            String accountId,
+            String datasourceId,
+            DeletePipeDocOutcome outcome,
+            int pipedocsRemoved,
+            List<RemovedPipeDocNode> removedNodes,
+            String message) {
+        DeletePipeDocRequest request = DeletePipeDocRequest.newBuilder()
+                .setLogicalDocument(
+                        DeleteLogicalDocumentCommand.newBuilder()
+                                .setDocId(docId)
+                                .setAccountId(accountId)
+                                .setDatasourceId(datasourceId)
+                                .build())
+                .build();
+
+        String requestJson = org.wiremock.grpc.internal.JsonMessageUtils.toJson(request);
+
+        DeletePipeDocResponse.Builder b = DeletePipeDocResponse.newBuilder()
+                .setOutcome(outcome)
+                .setPipedocsRemoved(pipedocsRemoved)
+                .setMessage(message != null ? message : "");
+        if (removedNodes != null) {
+            b.addAllRemovedNodes(removedNodes);
+        }
+
+        pipeDocService.stubFor(
+                method("DeletePipeDoc")
+                        .withRequestMessage(com.github.tomakehurst.wiremock.client.WireMock.equalToJson(requestJson, true, true))
+                        .willReturn(message(b.build()))
+        );
+    }
+
+    /**
+     * Logical delete removed at least one row; {@code removedNodeIds} become {@link RemovedPipeDocNode} entries.
+     */
+    public void mockDeletePipeDocRemoved(String docId, String accountId, String datasourceId, String... removedNodeIds) {
+        List<RemovedPipeDocNode> nodes = Arrays.stream(removedNodeIds)
+                .map(id -> RemovedPipeDocNode.newBuilder().setNodeId(id).build())
+                .collect(Collectors.toList());
+        mockDeletePipeDocLogical(
+                docId,
+                accountId,
+                datasourceId,
+                DeletePipeDocOutcome.DELETE_PIPE_DOC_OUTCOME_REMOVED,
+                nodes.isEmpty() ? 1 : nodes.size(),
+                nodes,
+                "deleted");
+    }
+
+    /**
+     * Idempotent delete: nothing matched (still success outcome in response).
+     */
+    public void mockDeletePipeDocNothingToRemove(String docId, String accountId, String datasourceId) {
+        mockDeletePipeDocLogical(
+                docId,
+                accountId,
+                datasourceId,
+                DeletePipeDocOutcome.DELETE_PIPE_DOC_OUTCOME_NOTHING_TO_REMOVE,
+                0,
+                List.of(),
+                "nothing to remove");
+    }
+
+    public void mockDeletePipeDocUnavailable() {
+        pipeDocService.stubFor(
+                method("DeletePipeDoc")
+                        .willReturn(WireMockGrpc.Status.UNAVAILABLE, "PipeDoc delete temporarily unavailable")
+        );
+    }
+
+    public void mockDeletePipeDocError(String errorMessage) {
+        pipeDocService.stubFor(
+                method("DeletePipeDoc")
+                        .willReturn(WireMockGrpc.Status.INTERNAL, errorMessage)
+        );
+    }
+
+    // ============================================
+    // ListPipeDocs Mocks
+    // ============================================
+
+    /**
+     * Return a fixed list response for any ListPipeDocs request (last registered wins for same priority).
+     */
+    public void mockListPipeDocs(ListPipeDocsResponse response) {
+        pipeDocService.stubFor(
+                method("ListPipeDocs")
+                        .willReturn(message(response))
+        );
+    }
+
+    /**
+     * Match a specific ListPipeDocs request (e.g. drive filter).
+     */
+    public void mockListPipeDocs(ListPipeDocsRequest request, ListPipeDocsResponse response) {
+        pipeDocService.stubFor(
+                method("ListPipeDocs")
+                        .withRequestMessage(WireMockGrpc.equalToMessage(request))
+                        .willReturn(message(response))
+        );
+    }
+
+    // ============================================
     // Utility Methods
     // ============================================
 
@@ -663,12 +852,15 @@ public class PipeDocServiceMock implements ServiceMockInitializer {
     }
 
     /**
-     * Reset all WireMock stubs for the PipeDoc service.
+     * Reset all WireMock stubs for the PipeDoc service and clear in-memory registration tracking.
+     * Re-installs baseline stubs from {@link #setupDefaultStubs()} so catch-alls (e.g. DeletePipeDoc idempotent default)
+     * remain available after a reset.
      */
     public void reset() {
         pipeDocService.resetAll();
         registeredDocs.clear();
         registeredBlobs.clear();
+        setupDefaultStubs();
     }
 
     // ============================================

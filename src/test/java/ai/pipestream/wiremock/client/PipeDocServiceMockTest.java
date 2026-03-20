@@ -4,6 +4,7 @@ import ai.pipestream.data.v1.FileStorageReference;
 import ai.pipestream.data.v1.DocumentReference;
 import ai.pipestream.data.v1.PipeDoc;
 import ai.pipestream.repository.pipedoc.v1.*;
+import ai.pipestream.wiremock.testing.PipeDocGrpcFixtures;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
@@ -83,19 +84,19 @@ class PipeDocServiceMockTest {
     }
 
     @Test
-    @DisplayName("Should match GetPipeDocByReference even when DocumentReference includes sourceNodeId")
-    void testGetByReferenceMatchesWithSourceNodeId() {
+    @DisplayName("Should match GetPipeDocByReference even when DocumentReference includes graphAddressId")
+    void testGetByReferenceMatchesWithGraphAddressId() {
         PipeDoc doc = PipeDoc.newBuilder()
                 .setDocId("doc-with-source-node")
                 .build();
 
         pipeDocMock.registerPipeDoc("doc-with-source-node", "account-xyz", doc, "node-1", "drive-1");
 
-        // Include sourceNodeId in the request; server should still match by docId+accountId.
+        // Include graph_address_id in the request; server should still match by docId+accountId.
         DocumentReference docRef = DocumentReference.newBuilder()
                 .setDocId("doc-with-source-node")
                 .setAccountId("account-xyz")
-                .setSourceNodeId("node-parser")
+                .setGraphAddressId("node-parser")
                 .build();
 
         GetPipeDocByReferenceRequest request = GetPipeDocByReferenceRequest.newBuilder()
@@ -727,5 +728,97 @@ class PipeDocServiceMockTest {
                 .build();
         GetBlobResponse blobResponse = stub.getBlob(blobRequest);
         assertEquals(blobData, blobResponse.getData());
+    }
+
+    // ============================================
+    // GetPipeDoc (by node id)
+    // ============================================
+
+    @Test
+    @DisplayName("Should return PipeDoc for registered node id via gRPC")
+    void testGetPipeDocByNodeIdViaGrpc() {
+        PipeDoc doc = PipeDocGrpcFixtures.pipeDoc("node-lookup-doc");
+        pipeDocMock.mockGetPipeDoc("repo-node-uuid-1", doc, "repo-node-uuid-1", "my-drive");
+
+        GetPipeDocResponse response = stub.getPipeDoc(
+                GetPipeDocRequest.newBuilder().setNodeId("repo-node-uuid-1").build());
+
+        assertNotNull(response);
+        assertTrue(response.hasPipedoc());
+        assertEquals("node-lookup-doc", response.getPipedoc().getDocId());
+        assertEquals("my-drive", response.getDrive());
+    }
+
+    @Test
+    @DisplayName("Should return NOT_FOUND for mocked missing node")
+    void testGetPipeDocNotFoundViaGrpc() {
+        pipeDocMock.mockGetPipeDocNotFound("missing-node");
+
+        io.grpc.StatusRuntimeException ex = assertThrows(io.grpc.StatusRuntimeException.class,
+                () -> stub.getPipeDoc(GetPipeDocRequest.newBuilder().setNodeId("missing-node").build()));
+        assertEquals(io.grpc.Status.Code.NOT_FOUND, ex.getStatus().getCode());
+    }
+
+    // ============================================
+    // DeletePipeDoc (logical document)
+    // ============================================
+
+    @Test
+    @DisplayName("Should return REMOVED with removed_nodes for logical delete")
+    void testDeletePipeDocRemovedViaGrpc() {
+        pipeDocMock.mockDeletePipeDocRemoved("doc-del", "acct-del", "ds-del", "550e8400-e29b-41d4-a716-446655440000");
+
+        DeletePipeDocRequest req = PipeDocGrpcFixtures.deletePipeDocLogical("doc-del", "acct-del", "ds-del");
+        DeletePipeDocResponse response = stub.deletePipeDoc(req);
+
+        assertEquals(DeletePipeDocOutcome.DELETE_PIPE_DOC_OUTCOME_REMOVED, response.getOutcome());
+        assertEquals(1, response.getPipedocsRemoved());
+        assertEquals(1, response.getRemovedNodesCount());
+        assertEquals("550e8400-e29b-41d4-a716-446655440000", response.getRemovedNodes(0).getNodeId());
+    }
+
+    @Test
+    @DisplayName("Should return NOTHING_TO_REMOVE when stubbed idempotent")
+    void testDeletePipeDocNothingToRemoveViaGrpc() {
+        pipeDocMock.mockDeletePipeDocNothingToRemove("doc-none", "acct-none", "ds-none");
+
+        DeletePipeDocResponse response = stub.deletePipeDoc(
+                PipeDocGrpcFixtures.deletePipeDocLogical("doc-none", "acct-none", "ds-none"));
+
+        assertEquals(DeletePipeDocOutcome.DELETE_PIPE_DOC_OUTCOME_NOTHING_TO_REMOVE, response.getOutcome());
+        assertEquals(0, response.getPipedocsRemoved());
+    }
+
+    @Test
+    @DisplayName("Default DeletePipeDoc stub is idempotent when no specific stub matches")
+    void testDeletePipeDocDefaultUnmatched() {
+        DeletePipeDocResponse response = stub.deletePipeDoc(
+                PipeDocGrpcFixtures.deletePipeDocLogical("unknown", "a", "d"));
+
+        assertEquals(DeletePipeDocOutcome.DELETE_PIPE_DOC_OUTCOME_NOTHING_TO_REMOVE, response.getOutcome());
+        assertEquals(0, response.getPipedocsRemoved());
+        assertTrue(response.getMessage().contains("No matching"));
+    }
+
+    // ============================================
+    // ListPipeDocs
+    // ============================================
+
+    @Test
+    @DisplayName("Should return listed metadata via gRPC")
+    void testListPipeDocsViaGrpc() {
+        PipeDocMetadata meta = PipeDocGrpcFixtures.pipeDocMetadata("n1", "d1", "drive1", "conn1");
+        ListPipeDocsResponse listResp = ListPipeDocsResponse.newBuilder()
+                .addPipedocs(meta)
+                .setTotalCount(1)
+                .setNextContinuationToken("")
+                .build();
+        pipeDocMock.mockListPipeDocs(listResp);
+
+        ListPipeDocsResponse response = stub.listPipeDocs(ListPipeDocsRequest.newBuilder().setDrive("drive1").build());
+
+        assertEquals(1, response.getPipedocsCount());
+        assertEquals("d1", response.getPipedocs(0).getDocId());
+        assertEquals(1, response.getTotalCount());
     }
 }
