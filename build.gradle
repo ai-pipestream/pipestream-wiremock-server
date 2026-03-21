@@ -15,7 +15,8 @@ plugins {
     alias(libs.plugins.shadow)
     alias(libs.plugins.proto.toolchain)
     id 'idea'
-    id 'io.quarkus' version '3.32.4'
+    // Align with pipestream-platform BOM (3.32.3) — avoid 3.32.4 Gradle test JVM profile regression
+    id 'io.quarkus' version '3.32.3'
 }
 
 scmVersion {
@@ -73,7 +74,7 @@ pipestreamProtos {
 }
 
 dependencies {
-    implementation enforcedPlatform("io.quarkus.platform:quarkus-bom:3.32.4")
+    implementation enforcedPlatform("io.quarkus.platform:quarkus-bom:3.32.3")
     implementation 'io.quarkus:quarkus-arc'
 
     implementation libs.wiremock.core
@@ -226,6 +227,7 @@ tasks.named('sourcesJar').configure {
 compileJava {
     options.encoding = 'UTF-8'
     options.compilerArgs << '-parameters'
+    options.compilerArgs << '-Xlint:deprecation'
 }
 
 test {
