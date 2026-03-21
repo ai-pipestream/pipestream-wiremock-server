@@ -1,0 +1,17 @@
+{
+  "name": "vector-set-delete",
+  "request": {
+    "method": "POST",
+    "urlPath": "/ai.pipestream.opensearch.v1.VectorSetService/DeleteVectorSet"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "grpc-status-name": "OK"
+    },
+    "jsonBody": {
+      "success": true,
+      "message": "VectorSet deleted (stub)"
+    }
+  }
+}

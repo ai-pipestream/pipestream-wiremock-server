@@ -76,6 +76,49 @@ class PlatformServicesMockTest {
 
         assertNotNull(response.getVectorSet());
         assertEquals("vs-1", response.getVectorSet().getId());
+        assertEquals("body", response.getVectorSet().getSourceCel());
+        assertEquals(VectorSetProvenance.VECTOR_SET_PROVENANCE_REGISTERED, response.getVectorSet().getProvenance());
+    }
+
+    @Test
+    void testVectorSet_CreateAndListAndResolve() {
+        VectorSetServiceGrpc.VectorSetServiceBlockingStub stub = VectorSetServiceGrpc.newBlockingStub(declarativeChannel);
+
+        CreateVectorSetResponse created = stub.createVectorSet(CreateVectorSetRequest.newBuilder()
+                .setName("new-vs")
+                .setChunkerConfigId("chunk-1")
+                .setEmbeddingModelConfigId("embed-1")
+                .setIndexName("pipestream-docs")
+                .setFieldName("f1")
+                .build());
+        assertNotNull(created.getVectorSet());
+        assertEquals("vs-created-stub", created.getVectorSet().getId());
+
+        ListVectorSetsResponse listed = stub.listVectorSets(ListVectorSetsRequest.newBuilder().setPageSize(10).build());
+        assertFalse(listed.getVectorSetsList().isEmpty());
+        assertEquals("vs-1", listed.getVectorSets(0).getId());
+
+        ResolveVectorSetResponse resolved = stub.resolveVectorSet(ResolveVectorSetRequest.newBuilder()
+                .setIndexName("pipestream-docs")
+                .setFieldName("vs_default")
+                .setResultSetName("default")
+                .build());
+        assertTrue(resolved.getFound());
+        assertEquals("vs-1", resolved.getVectorSet().getId());
+
+        ResolveVectorSetFromDirectiveResponse directive = stub.resolveVectorSetFromDirective(
+                ResolveVectorSetFromDirectiveRequest.newBuilder().setVectorSetId("vs-1").build());
+        assertTrue(directive.getResolved());
+        assertEquals("vs-1", directive.getVectorSet().getId());
+
+        UpdateVectorSetResponse updated = stub.updateVectorSet(UpdateVectorSetRequest.newBuilder()
+                .setId("vs-1")
+                .setName("renamed")
+                .build());
+        assertEquals("vs-1", updated.getVectorSet().getId());
+
+        DeleteVectorSetResponse deleted = stub.deleteVectorSet(DeleteVectorSetRequest.newBuilder().setId("vs-1").build());
+        assertTrue(deleted.getSuccess());
     }
 
     @Test

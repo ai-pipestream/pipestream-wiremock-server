@@ -60,51 +60,16 @@
 
 ## 📋 Remaining Work (Optional Enhancements)
 
-### Priority 1: SavePipeDoc Support (Optional)
-**Status**: ⚠️ **NOT IMPLEMENTED** (Not blocking for engine tests)
+### VectorSetService (declarative gRPC JSON)
+**Status**: **IMPLEMENTED** — one JSON stub per unary RPC on `VectorSetService` (Create, Get, Update, Delete, List, Resolve, ResolveFromDirective).
 
-**Why it's useful**: The engine saves PipeDocs after processing. Having mock support would enable testing the save operation.
+**Files**: `src/main/resources/wiremock/mappings/vector-set-*.json`  
+**Tests**: `PlatformServicesMockTest` exercises Get (including `source_cel` + `provenance`) and the full CRUD/resolve flow against the declarative server.
 
-**What's needed**:
-```java
-// In PipeDocServiceMock.java
-public void mockSavePipeDoc(String expectedNodeId) {
-    SavePipeDocResponse response = SavePipeDocResponse.newBuilder()
-        .setNodeId(expectedNodeId)
-        .build();
-    
-    pipeDocService.stubFor(
-        method("SavePipeDoc")
-            .willReturn(message(response))
-    );
-}
+When `pipestream-protos` adds fields to `VectorSet`, update **every** stub’s `vector_set` object so JSON stays consistent with the descriptor (run `./gradlew clean fetchProtos buildDescriptors` after proto changes).
 
-// Optional: Support for matching on specific PipeDoc content
-public void mockSavePipeDocWithRequest(PipeDoc expectedDoc, String nodeId) {
-    SavePipeDocRequest request = SavePipeDocRequest.newBuilder()
-        .setPipedoc(expectedDoc)
-        .build();
-    
-    SavePipeDocResponse response = SavePipeDocResponse.newBuilder()
-        .setNodeId(nodeId)
-        .build();
-    
-    pipeDocService.stubFor(
-        method("SavePipeDoc")
-            .withRequestMessage(WireMockGrpc.equalToMessage(request))
-            .willReturn(message(response))
-    );
-}
-```
-
-**Test scenarios needed**:
-- SavePipeDoc with valid PipeDoc returns node ID
-- SavePipeDoc with cluster ID
-- SavePipeDoc error scenarios
-
-**Files to modify**:
-- `src/main/java/ai/pipestream/wiremock/client/PipeDocServiceMock.java`
-- `src/test/java/ai/pipestream/wiremock/client/PipeDocServiceMockTest.java`
+### SavePipeDoc (programmatic gRPC stubs)
+**Status**: **IMPLEMENTED** in `PipeDocServiceMock` — `mockSavePipeDoc`, `mockSavePipeDocWithRequest`, error paths, and tests in `PipeDocServiceMockTest` (see that class; do not duplicate here).
 
 ### Priority 2: Edge Case Tests (Optional)
 **Status**: ⚠️ **PARTIALLY COVERED**
@@ -149,7 +114,6 @@ All critical functionality is implemented:
 - Error scenarios - **WORKING**
 
 **What's Optional**:
-- SavePipeDoc support (not blocking, but useful)
 - Additional edge case tests (nice to have)
 - Integration test scenarios (should be in engine project)
 
@@ -184,7 +148,8 @@ All critical functionality is implemented:
 - [x] GetBlob support implemented
 - [x] Comprehensive test coverage (50+ test cases)
 - [x] All tests passing
-- [ ] SavePipeDoc support (optional)
+- [x] VectorSetService declarative stubs (all unary RPCs)
+- [x] SavePipeDoc programmatic API (`PipeDocServiceMock`)
 - [ ] Additional edge case tests (optional)
 - [ ] Docker image built and tested
 

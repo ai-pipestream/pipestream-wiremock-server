@@ -152,6 +152,10 @@ registry.getProcessorMock().mockProcessDataSuccess();
 registry.getProcessorMock().mockProcessDataFailure("Error", "CODE");
 ```
 
+### OpenSearch — VectorSetService (declarative stubs)
+
+Unary gRPC methods are backed by JSON under `src/main/resources/wiremock/mappings/vector-set-*.json` (Create, Get, Update, Delete, List, Resolve, ResolveFromDirective). Stubs include current `VectorSet` fields such as `source_cel` and `provenance`. After proto changes, run `./gradlew clean fetchProtos buildDescriptors` and align those JSON bodies with the updated messages.
+
 ### Additional Mocks
 
 - **FilesystemServiceMock**: Mock blob storage with configurable test blobs
@@ -170,6 +174,3 @@ registry.getProcessorMock().mockProcessDataFailure("Error", "CODE");
 *   **Build**: `./gradlew build`
 *   **Docker Build (Local)**: `./gradlew jibDockerBuild`
 *   **Release**: Versioning is handled via `axion-release` plugin. Tags created in Git trigger CI builds.
-\n\n# Trigger build: verified green state
-\n\n# Verified release build state
-\n\n# Verified stable high-fidelity mock state
