@@ -15,10 +15,13 @@
         "name": "Default Text Vector Set",
         "chunker_config_id": "chunk-1",
         "embedding_model_config_id": "embed-1",
+        "index_name": "pipestream-docs",
         "field_name": "vs_default",
         "vector_dimensions": 1024,
         "source_field": "body",
-        "result_set_name": "default"
+        "source_cel": "body",
+        "result_set_name": "default",
+        "provenance": "VECTOR_SET_PROVENANCE_REGISTERED"
       }
     }
   }

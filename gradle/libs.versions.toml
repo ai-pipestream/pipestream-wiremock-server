@@ -14,7 +14,7 @@ assertj = "3.27.7"
 junit-jupiter = "6.0.3"
 junit-platform = "6.0.3"
 shadow = "9.4.0"
-proto-toolchain = "0.7.19"
+proto-toolchain = "0.7.20"
 
 # Plugins
 axion-release = "1.21.1"

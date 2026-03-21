@@ -66,7 +66,7 @@ pipestreamProtos {
     modules {
         register("all") {
             gitRepo = "https://github.com/ai-pipestream/pipestream-protos.git"
-            gitRef = "main"
+            gitRef = "v0.4.0"
             gitSubdir = "."
         }
     }
