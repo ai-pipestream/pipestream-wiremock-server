@@ -16,7 +16,7 @@ plugins {
     alias(libs.plugins.proto.toolchain)
     id 'idea'
     // Align with pipestream-platform BOM (3.32.3) — avoid 3.32.4 Gradle test JVM profile regression
-    id 'io.quarkus' version '3.34.0'
+    id 'io.quarkus' version '3.32.3'
 }
 
 scmVersion {
