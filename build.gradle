@@ -15,8 +15,8 @@ plugins {
     alias(libs.plugins.shadow)
     alias(libs.plugins.proto.toolchain)
     id 'idea'
-    // Align with pipestream-platform BOM (3.32.3) — avoid 3.32.4 Gradle test JVM profile regression
-    id 'io.quarkus' version '3.32.3'
+    // Align with pipestream-platform BOM — 3.34.1
+    id 'io.quarkus' version '3.34.1'
 }
 
 scmVersion {
@@ -74,7 +74,7 @@ pipestreamProtos {
 }
 
 dependencies {
-    implementation enforcedPlatform("io.quarkus.platform:quarkus-bom:3.32.3")
+    implementation enforcedPlatform("io.quarkus.platform:quarkus-bom:3.34.1")
     implementation 'io.quarkus:quarkus-arc'
 
     implementation libs.wiremock.core
