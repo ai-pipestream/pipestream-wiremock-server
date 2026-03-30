@@ -13,7 +13,7 @@ proto-google-common-protos = "2.67.0"
 assertj = "3.27.7"
 junit-jupiter = "6.0.3"
 junit-platform = "6.0.3"
-shadow = "9.4.0"
+shadow = "9.4.1"
 proto-toolchain = "0.7.20"
 
 # Plugins
