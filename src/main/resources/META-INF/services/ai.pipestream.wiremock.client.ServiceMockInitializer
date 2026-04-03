@@ -8,3 +8,4 @@ ai.pipestream.wiremock.client.FilesystemServiceMock
 ai.pipestream.wiremock.client.PipeDocServiceMock
 ai.pipestream.wiremock.client.EngineV1ServiceMock
 ai.pipestream.wiremock.client.OpenSearchManagerMock
+ai.pipestream.wiremock.client.BackendEndpointServiceMock
