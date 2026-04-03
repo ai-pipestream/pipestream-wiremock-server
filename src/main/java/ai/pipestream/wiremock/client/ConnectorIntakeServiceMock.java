@@ -22,6 +22,7 @@ public class ConnectorIntakeServiceMock implements ServiceMockInitializer {
 
     public ConnectorIntakeServiceMock(WireMock wireMock) {
         this.intakeService = new WireMockGrpcService(wireMock, SERVICE_NAME);
+        setupDefaultStubs();
     }
 
     public ConnectorIntakeServiceMock() {
@@ -38,20 +39,91 @@ public class ConnectorIntakeServiceMock implements ServiceMockInitializer {
 
         LOG.info("Initializing default ConnectorIntakeService stubs");
 
+        setupDefaultStubs();
+    }
+
+    private void setupDefaultStubs() {
         // Default successful responses for common operations
-        mockUploadPipeDocSuccess("test-doc-id");
-        mockUploadBlobSuccess("test-blob-doc-id");
-        mockStartCrawlSessionSuccess("test-session-id", "test-crawl-id");
+        mockUploadPipeDocSuccess("mock-intake-doc-001");
+        mockUploadBlobSuccess("mock-blob-001");
+        mockStartCrawlSessionSuccess("mock-session-001", "mock-crawl-001");
         mockEndCrawlSessionSuccess(0, 0);
         mockHeartbeatSuccess(true);
         mockDeletePipeDocSuccess();
     }
 
+    /**
+     * Mock a successful UploadPipeDoc response with a fixed doc_id.
+     *
+     * @param docId The document ID to return
+     */
     public void mockUploadPipeDocSuccess(String docId) {
         UploadPipeDocResponse response = UploadPipeDocResponse.newBuilder()
                 .setSuccess(true)
                 .setDocId(docId)
                 .setMessage("Document uploaded successfully")
+                .build();
+
+        intakeService.stubFor(
+                method("UploadPipeDoc")
+                        .willReturn(message(response))
+        );
+    }
+
+    /**
+     * Mock a successful UploadPipeDoc response with deterministic doc_id derivation.
+     *
+     * @param datasourceId The datasource ID
+     * @param sourceDocId The source document ID
+     */
+    public void mockUploadPipeDocDeterministic(String datasourceId, String sourceDocId) {
+        String derivedDocId = datasourceId + ":" + sourceDocId;
+        UploadPipeDocResponse response = UploadPipeDocResponse.newBuilder()
+                .setSuccess(true)
+                .setDocId(derivedDocId)
+                .setMessage("Document uploaded successfully (derived id)")
+                .build();
+
+        // Use JSON matching to ignore extra fields. 
+        // gRPC JSON mapping typically uses camelCase for field names.
+        String requestJson = String.format("{\"datasourceId\": \"%s\", \"sourceDocId\": \"%s\"}", 
+                datasourceId, sourceDocId);
+
+        intakeService.stubFor(
+                method("UploadPipeDoc")
+                        .withRequestMessage(com.github.tomakehurst.wiremock.client.WireMock.equalToJson(requestJson, true, true))
+                        .willReturn(message(response))
+        );
+    }
+
+    /**
+     * Mock a validation error (missing datasource_id).
+     */
+    public void mockUploadPipeDocMissingDatasource() {
+        UploadPipeDocResponse response = UploadPipeDocResponse.newBuilder()
+                .setSuccess(false)
+                .setMessage("Validation error: datasource_id is required")
+                .build();
+
+        UploadPipeDocRequest request = UploadPipeDocRequest.newBuilder()
+                .setDatasourceId("")
+                .build();
+
+        intakeService.stubFor(
+                method("UploadPipeDoc")
+                        .withRequestMessage(org.wiremock.grpc.dsl.WireMockGrpc.equalToMessage(request))
+                        .willReturn(message(response))
+        );
+    }
+
+    /**
+     * Mock an engine rejection.
+     */
+    public void mockUploadPipeDocEngineRejected(String docId, String reason) {
+        UploadPipeDocResponse response = UploadPipeDocResponse.newBuilder()
+                .setSuccess(false)
+                .setDocId(docId)
+                .setMessage("Engine rejected: " + reason)
                 .build();
 
         intakeService.stubFor(

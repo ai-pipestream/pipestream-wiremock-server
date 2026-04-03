@@ -114,6 +114,63 @@ public class PipelineConfigServiceMock implements ServiceMockInitializer {
         );
     }
 
+    /**
+     * Mock a successful GetPipelineConfig response.
+     *
+     * @param clusterName The cluster name
+     * @param graphName The graph name
+     */
+    public void mockGetPipelineConfig(String clusterName, String graphName) {
+        PipelineGraph graph = PipelineGraph.newBuilder()
+                .setClusterId("id-" + clusterName)
+                .setName(graphName)
+                .build();
+
+        GetPipelineConfigResponse response = GetPipelineConfigResponse.newBuilder()
+                .setGraph(graph)
+                .build();
+
+        configService.stubFor(
+                method("GetPipelineConfig")
+                        .willReturn(message(response))
+        );
+    }
+
+    /**
+     * Mock a successful UpdatePipelineGraph response.
+     *
+     * @param clusterName The cluster name
+     * @param graph The updated graph
+     */
+    public void mockUpdatePipelineGraph(String clusterName, PipelineGraph graph) {
+        UpdatePipelineGraphResponse response = UpdatePipelineGraphResponse.newBuilder()
+                .setSuccess(true)
+                .setPipelineGraph(graph)
+                .setMessage("Pipeline graph updated successfully")
+                .build();
+
+        configService.stubFor(
+                method("UpdatePipelineGraph")
+                        .willReturn(message(response))
+        );
+    }
+
+    /**
+     * Mock a successful ListPipelineGraphs response.
+     *
+     * @param graphs List of graphs to return
+     */
+    public void mockListPipelineGraphs(List<PipelineGraph> graphs) {
+        ListPipelineGraphsResponse response = ListPipelineGraphsResponse.newBuilder()
+                .addAllPipelineGraphs(graphs)
+                .build();
+
+        configService.stubFor(
+                method("ListPipelineGraphs")
+                        .willReturn(message(response))
+        );
+    }
+
     public void reset() {
         configService.resetAll();
     }
