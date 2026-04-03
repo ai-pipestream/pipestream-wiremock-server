@@ -394,7 +394,7 @@ class PipeStepProcessorMockTest {
         ProcessDataResponse response = stub.processData(request);
 
         assertNotNull(response);
-        assertTrue(response.getSuccess());
+        assertEquals(ProcessingOutcome.PROCESSING_OUTCOME_SUCCESS, response.getOutcome());
     }
 
     @Test
@@ -406,7 +406,7 @@ class PipeStepProcessorMockTest {
         ProcessDataResponse response = stub.processData(request);
 
         assertNotNull(response);
-        assertTrue(response.getSuccess());
+        assertEquals(ProcessingOutcome.PROCESSING_OUTCOME_SUCCESS, response.getOutcome());
         assertTrue(response.hasOutputDoc());
         assertTrue(response.getLogEntriesList().stream()
                 .anyMatch(entry -> entry.getMessage().contains("Parser extracted")));
@@ -421,7 +421,7 @@ class PipeStepProcessorMockTest {
         ProcessDataResponse response = stub.processData(request);
 
         assertNotNull(response);
-        assertTrue(response.getSuccess());
+        assertEquals(ProcessingOutcome.PROCESSING_OUTCOME_SUCCESS, response.getOutcome());
         assertTrue(response.getLogEntriesList().stream()
                 .anyMatch(entry -> entry.getMessage().contains("Chunker created 5 chunks")));
     }
@@ -435,7 +435,7 @@ class PipeStepProcessorMockTest {
         ProcessDataResponse response = stub.processData(request);
 
         assertNotNull(response);
-        assertTrue(response.getSuccess());
+        assertEquals(ProcessingOutcome.PROCESSING_OUTCOME_SUCCESS, response.getOutcome());
         assertTrue(response.getLogEntriesList().stream()
                 .anyMatch(entry -> entry.getMessage().contains("10 embeddings with dimension 1536")));
     }
@@ -449,7 +449,7 @@ class PipeStepProcessorMockTest {
         ProcessDataResponse response = stub.processData(request);
 
         assertNotNull(response);
-        assertTrue(response.getSuccess());
+        assertEquals(ProcessingOutcome.PROCESSING_OUTCOME_SUCCESS, response.getOutcome());
         assertTrue(response.getLogEntriesList().stream()
                 .anyMatch(entry -> entry.getMessage().contains("25 documents to my-index")));
     }
@@ -463,7 +463,7 @@ class PipeStepProcessorMockTest {
         ProcessDataResponse response = stub.processData(request);
 
         assertNotNull(response);
-        assertFalse(response.getSuccess());
+        assertEquals(ProcessingOutcome.PROCESSING_OUTCOME_FAILURE, response.getOutcome());
         assertTrue(response.hasErrorDetails());
         assertTrue(response.getLogEntriesList().stream()
                 .anyMatch(entry -> entry.getMessage().contains("Processing failed")));
@@ -535,7 +535,7 @@ class PipeStepProcessorMockTest {
         ProcessDataRequest dataRequest = ProcessDataRequest.newBuilder().build();
         ProcessDataResponse dataResponse = stub.processData(dataRequest);
 
-        assertTrue(dataResponse.getSuccess());
+        assertEquals(ProcessingOutcome.PROCESSING_OUTCOME_SUCCESS, dataResponse.getOutcome());
     }
 
     @Test
@@ -561,7 +561,7 @@ class PipeStepProcessorMockTest {
         ProcessDataRequest dataRequest = ProcessDataRequest.newBuilder().build();
         ProcessDataResponse dataResponse = stub.processData(dataRequest);
 
-        assertTrue(dataResponse.getSuccess());
+        assertEquals(ProcessingOutcome.PROCESSING_OUTCOME_SUCCESS, dataResponse.getOutcome());
         assertTrue(dataResponse.getLogEntriesList().stream()
                 .anyMatch(entry -> entry.getMessage().contains("100 documents")));
     }

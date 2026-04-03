@@ -358,7 +358,7 @@ public class PipeStepProcessorMock implements ServiceMockInitializer {
      */
     public void mockProcessDataSuccess() {
         ProcessDataResponse response = ProcessDataResponse.newBuilder()
-                .setSuccess(true)
+                .setOutcome(ProcessingOutcome.PROCESSING_OUTCOME_SUCCESS)
                 .build();
 
         processorService.stubFor(
@@ -380,7 +380,7 @@ public class PipeStepProcessorMock implements ServiceMockInitializer {
                 .build();
 
         ProcessDataResponse response = ProcessDataResponse.newBuilder()
-                .setSuccess(true)
+                .setOutcome(ProcessingOutcome.PROCESSING_OUTCOME_SUCCESS)
                 .setOutputDoc(outputDoc)
                 .addLogEntries(LogEntry.newBuilder()
                         .setSource(LogEntrySource.LOG_ENTRY_SOURCE_MODULE)
@@ -408,7 +408,7 @@ public class PipeStepProcessorMock implements ServiceMockInitializer {
                 .build();
 
         ProcessDataResponse response = ProcessDataResponse.newBuilder()
-                .setSuccess(true)
+                .setOutcome(ProcessingOutcome.PROCESSING_OUTCOME_SUCCESS)
                 .setOutputDoc(outputDoc)
                 .addLogEntries(LogEntry.newBuilder()
                         .setSource(LogEntrySource.LOG_ENTRY_SOURCE_MODULE)
@@ -437,7 +437,7 @@ public class PipeStepProcessorMock implements ServiceMockInitializer {
                 .build();
 
         ProcessDataResponse response = ProcessDataResponse.newBuilder()
-                .setSuccess(true)
+                .setOutcome(ProcessingOutcome.PROCESSING_OUTCOME_SUCCESS)
                 .setOutputDoc(outputDoc)
                 .addLogEntries(LogEntry.newBuilder()
                         .setSource(LogEntrySource.LOG_ENTRY_SOURCE_MODULE)
@@ -462,7 +462,7 @@ public class PipeStepProcessorMock implements ServiceMockInitializer {
      */
     public void mockSinkProcessData(String indexName, int documentCount) {
         ProcessDataResponse response = ProcessDataResponse.newBuilder()
-                .setSuccess(true)
+                .setOutcome(ProcessingOutcome.PROCESSING_OUTCOME_SUCCESS)
                 .addLogEntries(LogEntry.newBuilder()
                         .setSource(LogEntrySource.LOG_ENTRY_SOURCE_MODULE)
                         .setLevel(LogLevel.LOG_LEVEL_INFO)
@@ -491,7 +491,7 @@ public class PipeStepProcessorMock implements ServiceMockInitializer {
                 .build();
 
         ProcessDataResponse response = ProcessDataResponse.newBuilder()
-                .setSuccess(false)
+                .setOutcome(ProcessingOutcome.PROCESSING_OUTCOME_FAILURE)
                 .setErrorDetails(errorDetails)
                 .addLogEntries(LogEntry.newBuilder()
                         .setSource(LogEntrySource.LOG_ENTRY_SOURCE_MODULE)
