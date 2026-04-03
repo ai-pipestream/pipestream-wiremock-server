@@ -1,6 +1,6 @@
 [versions]
 wiremock = "4.0.0-beta.30"
-opensearch = "3.7.0"
+opensearch = "3.8.0"
 wiremock-grpc-extension = "1.0.0-beta.5"
 httpclient5 = "5.6"
 slf4j = "2.0.17"
@@ -14,7 +14,7 @@ assertj = "3.27.7"
 junit-jupiter = "6.0.3"
 junit-platform = "6.0.3"
 shadow = "9.4.1"
-proto-toolchain = "0.7.20"
+proto-toolchain = "0.7.21"
 
 # Plugins
 axion-release = "1.21.1"
