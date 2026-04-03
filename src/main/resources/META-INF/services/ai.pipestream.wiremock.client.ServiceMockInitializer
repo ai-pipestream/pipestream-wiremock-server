@@ -9,3 +9,7 @@ ai.pipestream.wiremock.client.PipeDocServiceMock
 ai.pipestream.wiremock.client.EngineV1ServiceMock
 ai.pipestream.wiremock.client.OpenSearchManagerMock
 ai.pipestream.wiremock.client.BackendEndpointServiceMock
+ai.pipestream.wiremock.client.ConnectorIntakeServiceMock
+ai.pipestream.wiremock.client.PipelineConfigServiceMock
+ai.pipestream.wiremock.client.DesignModeServiceMock
+ai.pipestream.wiremock.client.ValidationServiceMock

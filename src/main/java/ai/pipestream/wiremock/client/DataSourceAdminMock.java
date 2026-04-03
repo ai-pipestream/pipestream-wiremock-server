@@ -460,6 +460,102 @@ public class DataSourceAdminMock implements ServiceMockInitializer {
         );
     }
 
+    // ============================================
+    // UpdateDataSource mocks
+    // ============================================
+
+    /**
+     * Mock a successful UpdateDataSource response.
+     *
+     * @param updatedDatasource The updated datasource to return
+     */
+    public void mockUpdateDataSource(DataSource updatedDatasource) {
+        UpdateDataSourceRequest request = UpdateDataSourceRequest.newBuilder()
+                .setDatasourceId(updatedDatasource.getDatasourceId())
+                .build();
+
+        UpdateDataSourceResponse response = UpdateDataSourceResponse.newBuilder()
+                .setSuccess(true)
+                .setDatasource(updatedDatasource)
+                .setMessage("DataSource updated successfully")
+                .build();
+
+        datasourceService.stubFor(
+                method("UpdateDataSource")
+                        .withRequestMessage(WireMockGrpc.equalToMessage(request))
+                        .willReturn(message(response))
+        );
+    }
+
+    // ============================================
+    // GetCrawlHistory mocks
+    // ============================================
+
+    /**
+     * Mock a GetCrawlHistory response.
+     *
+     * @param datasourceId The datasource ID
+     * @param sessions List of crawl session summaries to return
+     */
+    public void mockGetCrawlHistory(String datasourceId, List<CrawlSessionSummary> sessions) {
+        GetCrawlHistoryRequest request = GetCrawlHistoryRequest.newBuilder()
+                .setDatasourceId(datasourceId)
+                .build();
+
+        GetCrawlHistoryResponse response = GetCrawlHistoryResponse.newBuilder()
+                .addAllSessions(sessions)
+                .build();
+
+        datasourceService.stubFor(
+                method("GetCrawlHistory")
+                        .withRequestMessage(WireMockGrpc.equalToMessage(request))
+                        .willReturn(message(response))
+        );
+    }
+
+    // ============================================
+    // ConnectorType mocks
+    // ============================================
+
+    /**
+     * Mock a ListConnectorTypes response.
+     *
+     * @param connectors List of connector types to return
+     */
+    public void mockListConnectorTypes(List<ai.pipestream.connector.v1.Connector> connectors) {
+        ListConnectorTypesResponse response = ListConnectorTypesResponse.newBuilder()
+                .addAllConnectors(connectors)
+                .setTotalCount(connectors.size())
+                .build();
+
+        datasourceService.stubFor(
+                method("ListConnectorTypes")
+                        .willReturn(message(response))
+        );
+    }
+
+    /**
+     * Mock a GetConnectorType response.
+     *
+     * @param connectorId The connector identifier
+     * @param connector The connector details to return
+     */
+    public void mockGetConnectorType(String connectorId, ai.pipestream.connector.v1.Connector connector) {
+        GetConnectorTypeRequest request = GetConnectorTypeRequest.newBuilder()
+                .setConnectorId(connectorId)
+                .build();
+
+        GetConnectorTypeResponse response = GetConnectorTypeResponse.newBuilder()
+                .setConnector(connector)
+                .build();
+
+        datasourceService.stubFor(
+                method("GetConnectorType")
+                        .withRequestMessage(WireMockGrpc.equalToMessage(request))
+                        .willReturn(message(response))
+        );
+    }
+
     /**
      * Reset all WireMock stubs for the datasource service.
      */
