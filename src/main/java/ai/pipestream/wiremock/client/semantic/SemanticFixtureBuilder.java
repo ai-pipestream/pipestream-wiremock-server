@@ -19,13 +19,13 @@ import com.google.protobuf.Value;
  * semantic pipeline step mocks.
  *
  * <p>These builders produce the exact shapes required by the invariants defined
- * in {@code SemanticPipelineInvariants} (in pipestream-test-support). Wiremock
- * mocks serve them as canned gRPC responses; tests verify them against the
- * invariants via pipestream-test-support (testImplementation scope).
+ * in {@code ai.pipestream.wiremock.client.semantic.SemanticPipelineInvariants}
+ * (test sources). Wiremock mocks serve them as canned gRPC responses; tests
+ * verify them against the invariants directly.
  *
  * <p>Kept inside wiremock-server's own main source on purpose — the wiremock
- * runtime container has no pipestream-test-support dependency at main scope
- * and must build its canned responses self-sufficiently.
+ * runtime container must build its canned responses self-sufficiently and
+ * cannot depend on test sources.
  */
 public final class SemanticFixtureBuilder {
 
