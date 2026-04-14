@@ -101,6 +101,14 @@ dependencies {
     testImplementation libs.junit.jupiter
     testImplementation libs.assertj.core
     testRuntimeOnly libs.junit.platform.launcher
+
+    // pipestream-test-support provides SemanticPipelineInvariants for the
+    // semantic-pipeline step mock tests. Non-transitive: wiremock-server is
+    // not a Quarkus project, so we only want the thin class set from the jar,
+    // not the transitive Quarkus / testcontainers deps.
+    testImplementation('ai.pipestream:pipestream-test-support:0.7.24-SNAPSHOT') {
+        transitive = false
+    }
 }
 
 // Configure source sets for proto-toolchain generated code
