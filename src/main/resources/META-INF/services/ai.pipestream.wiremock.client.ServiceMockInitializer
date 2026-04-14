@@ -15,3 +15,5 @@ ai.pipestream.wiremock.client.PipelineGraphServiceMock
 ai.pipestream.wiremock.client.DesignModeServiceMock
 ai.pipestream.wiremock.client.ValidationServiceMock
 ai.pipestream.wiremock.client.ChunkerStepMock
+ai.pipestream.wiremock.client.EmbedderStepMock
+ai.pipestream.wiremock.client.SemanticGraphStepMock
