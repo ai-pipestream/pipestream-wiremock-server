@@ -5,7 +5,7 @@ import ai.pipestream.data.module.v1.ProcessDataRequest;
 import ai.pipestream.data.module.v1.ProcessDataResponse;
 import ai.pipestream.data.module.v1.ProcessingOutcome;
 import ai.pipestream.data.v1.PipeDoc;
-import ai.pipestream.test.support.semantic.SemanticPipelineInvariants;
+import ai.pipestream.wiremock.client.semantic.SemanticPipelineInvariants;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
