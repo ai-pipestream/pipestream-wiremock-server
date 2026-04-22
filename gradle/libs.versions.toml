@@ -2,7 +2,7 @@
 wiremock = "4.0.0-beta.32"
 opensearch = "3.8.0"
 wiremock-grpc-extension = "1.0.0-beta.5"
-httpclient5 = "5.6"
+httpclient5 = "5.6.1"
 slf4j = "2.0.17"
 jboss-logging = "3.6.3.Final"
 protobuf-java = "4.34.1"
