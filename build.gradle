@@ -15,7 +15,7 @@ plugins {
     alias(libs.plugins.shadow)
     alias(libs.plugins.proto.toolchain)
     id 'idea'
-    id 'io.quarkus' version '3.34.5'
+    id 'io.quarkus' version '3.34.6'
 }
 
 scmVersion {
@@ -73,7 +73,7 @@ pipestreamProtos {
 }
 
 dependencies {
-    implementation enforcedPlatform("io.quarkus.platform:quarkus-bom:3.34.5")
+    implementation enforcedPlatform("io.quarkus.platform:quarkus-bom:3.34.6")
     implementation 'io.quarkus:quarkus-arc'
 
     implementation libs.wiremock.core
