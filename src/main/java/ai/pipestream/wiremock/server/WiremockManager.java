@@ -63,6 +63,7 @@ public class WiremockManager {
         }
         
         config.extensions(new GrpcExtensionFactory());
+        config.extensions(new DelayInjectionRequestFilter());
 
         wireMockServer = new WireMockServer(config);
         wireMockServer.start();
