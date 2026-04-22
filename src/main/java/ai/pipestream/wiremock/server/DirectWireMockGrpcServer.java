@@ -74,7 +74,19 @@ public class DirectWireMockGrpcServer {
             String delayStr = headers.get(DELAY_MS_HEADER);
             if (delayStr != null) {
                 try {
-                    ctx = ctx.withValue(TEST_DELAY_MS_KEY, Integer.parseInt(delayStr));
+                    int delayMs = Integer.parseInt(delayStr);
+                    ctx = ctx.withValue(TEST_DELAY_MS_KEY, delayMs);
+                    // Honor the delay universally for every Direct gRPC service before
+                    // the call is dispatched. Individual service implementations no
+                    // longer need to repeat this Thread.sleep.
+                    if (delayMs > 0) {
+                        try {
+                            LOG.debugf("Honoring x-test-delay-ms=%dms on Direct gRPC server", delayMs);
+                            Thread.sleep(delayMs);
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                        }
+                    }
                 } catch (NumberFormatException ignored) {
                     // Ignore invalid delay values
                 }
@@ -135,15 +147,7 @@ public class DirectWireMockGrpcServer {
             int size = request.getSerializedSize();
             String scenario = TEST_SCENARIO_KEY.get();
             String customDocId = TEST_DOC_ID_KEY.get();
-            Integer delayMs = TEST_DELAY_MS_KEY.get();
-
-            if (delayMs != null && delayMs > 0) {
-                try {
-                    Thread.sleep(delayMs);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-            }
+            // Note: x-test-delay-ms is honored centrally by TestMetadataInterceptor.
 
             if ("failure".equals(scenario)) {
                 responseObserver.onNext(UploadFilesystemPipeDocResponse.newBuilder()
