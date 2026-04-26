@@ -14,6 +14,7 @@ import ai.pipestream.repository.account.v1.*;
 import ai.pipestream.opensearch.v1.*;
 import ai.pipestream.schemamanager.v1.EnsureNestedEmbeddingsFieldExistsRequest;
 import ai.pipestream.schemamanager.v1.EnsureNestedEmbeddingsFieldExistsResponse;
+import ai.pipestream.connector.intake.v1.*;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -114,6 +115,7 @@ public class DirectWireMockGrpcServer {
                 .addService(new NodeUploadServiceImpl())
                 .addService(new AccountServiceStreamingImpl())
                 .addService(new OpenSearchManagerServiceImpl())
+                .addService(new ConnectorIntakeServiceImpl())
                 .addService(new HealthImpl())
                 .addService(ProtoReflectionServiceV1.newInstance())
                 .build();
@@ -553,6 +555,219 @@ public class DirectWireMockGrpcServer {
                 responseObserver.onNext(StreamAllAccountsResponse.newBuilder().setAccount(account).build());
             }
             responseObserver.onCompleted();
+        }
+    }
+
+    /**
+     * Mock implementation of {@code ConnectorIntakeService} that mirrors
+     * the WireMock-based stubs in {@link
+     * ai.pipestream.wiremock.client.ConnectorIntakeServiceMock} for unary
+     * RPCs and additionally implements the bidi-streaming
+     * {@code uploadPipeDocStream} RPC, which the WireMock gRPC extension
+     * does not support natively.
+     * <p>
+     * Streaming behavior:
+     * <ul>
+     *   <li>First message MUST be a {@link StreamContext}; otherwise the
+     *       server emits an error response and the client should
+     *       half-close.</li>
+     *   <li>Subsequent {@link PipeDocItem} messages are echoed back as
+     *       successful {@link UploadPipeDocStreamResponse}s with a
+     *       deterministic mock doc_id derived from
+     *       {@code datasource_id + ":" + source_doc_id}.</li>
+     *   <li>Test scenarios honoring {@code TEST_SCENARIO_KEY}:
+     *     <ul>
+     *       <li>{@code force-error} — emit retryable=true failure for every doc</li>
+     *       <li>{@code reject-context} — emit failure on the StreamContext</li>
+     *     </ul>
+     *   </li>
+     * </ul>
+     */
+    private static class ConnectorIntakeServiceImpl extends ConnectorIntakeServiceGrpc.ConnectorIntakeServiceImplBase {
+
+        @Override
+        public void uploadPipeDoc(UploadPipeDocRequest request,
+                                  StreamObserver<UploadPipeDocResponse> responseObserver) {
+            if ("force-error".equals(TEST_SCENARIO_KEY.get())) {
+                responseObserver.onNext(UploadPipeDocResponse.newBuilder()
+                        .setSuccess(false)
+                        .setMessage("Forced error via mock trigger")
+                        .build());
+                responseObserver.onCompleted();
+                return;
+            }
+            String docId = mockDocId(request.getDatasourceId(), request.getSourceDocId(),
+                    request.getPipeDoc().getDocId());
+            responseObserver.onNext(UploadPipeDocResponse.newBuilder()
+                    .setSuccess(true)
+                    .setDocId(docId)
+                    .setMessage("Document uploaded successfully")
+                    .build());
+            responseObserver.onCompleted();
+        }
+
+        @Override
+        public void uploadBlob(UploadBlobRequest request,
+                               StreamObserver<UploadBlobResponse> responseObserver) {
+            if ("force-error".equals(TEST_SCENARIO_KEY.get())) {
+                responseObserver.onNext(UploadBlobResponse.newBuilder()
+                        .setSuccess(false)
+                        .setMessage("Forced error via mock trigger")
+                        .build());
+                responseObserver.onCompleted();
+                return;
+            }
+            String docId = mockDocId(request.getDatasourceId(), request.getSourceDocId(), "");
+            responseObserver.onNext(UploadBlobResponse.newBuilder()
+                    .setSuccess(true)
+                    .setDocId(docId)
+                    .setMessage("Blob uploaded successfully")
+                    .build());
+            responseObserver.onCompleted();
+        }
+
+        @Override
+        public void deletePipeDoc(DeletePipeDocRequest request,
+                                  StreamObserver<DeletePipeDocResponse> responseObserver) {
+            responseObserver.onNext(DeletePipeDocResponse.newBuilder()
+                    .setSuccess(true)
+                    .setMessage("Document deletion accepted")
+                    .build());
+            responseObserver.onCompleted();
+        }
+
+        @Override
+        public void startCrawlSession(StartCrawlSessionRequest request,
+                                      StreamObserver<StartCrawlSessionResponse> responseObserver) {
+            String crawlId = request.getCrawlId().isEmpty()
+                    ? "mock-crawl-" + System.nanoTime()
+                    : request.getCrawlId();
+            responseObserver.onNext(StartCrawlSessionResponse.newBuilder()
+                    .setSessionId("mock-session-" + System.nanoTime())
+                    .setCrawlId(crawlId)
+                    .setSuccess(true)
+                    .build());
+            responseObserver.onCompleted();
+        }
+
+        @Override
+        public void endCrawlSession(EndCrawlSessionRequest request,
+                                    StreamObserver<EndCrawlSessionResponse> responseObserver) {
+            responseObserver.onNext(EndCrawlSessionResponse.newBuilder()
+                    .setSuccess(true)
+                    .setOrphansFound(0)
+                    .setOrphansDeleted(0)
+                    .build());
+            responseObserver.onCompleted();
+        }
+
+        @Override
+        public void heartbeat(HeartbeatRequest request,
+                              StreamObserver<HeartbeatResponse> responseObserver) {
+            responseObserver.onNext(HeartbeatResponse.newBuilder()
+                    .setSessionValid(true)
+                    .build());
+            responseObserver.onCompleted();
+        }
+
+        @Override
+        public StreamObserver<UploadPipeDocStreamRequest> uploadPipeDocStream(
+                StreamObserver<UploadPipeDocStreamResponse> responseObserver) {
+
+            // Capture the test scenario at stream-open time so per-doc
+            // handlers don't have to re-read it. The interceptor placed
+            // it on the Context for this call.
+            String scenario = TEST_SCENARIO_KEY.get();
+            String[] datasourceIdHolder = new String[1];
+
+            return new StreamObserver<UploadPipeDocStreamRequest>() {
+                @Override
+                public void onNext(UploadPipeDocStreamRequest req) {
+                    if (req.hasContext()) {
+                        if ("reject-context".equals(scenario)) {
+                            responseObserver.onNext(UploadPipeDocStreamResponse.newBuilder()
+                                    .setSuccess(false)
+                                    .setMessage("Stream context rejected by mock trigger")
+                                    .setRetryable(false)
+                                    .build());
+                            return;
+                        }
+                        datasourceIdHolder[0] = req.getContext().getDatasourceId();
+                        LOG.debugf("ConnectorIntakeMock stream opened: datasource=%s, crawl=%s",
+                                req.getContext().getDatasourceId(), req.getContext().getCrawlId());
+                        responseObserver.onNext(UploadPipeDocStreamResponse.newBuilder()
+                                .setSuccess(true)
+                                .setMessage("stream context accepted by mock")
+                                .build());
+                        return;
+                    }
+                    if (req.hasItem()) {
+                        PipeDocItem item = req.getItem();
+                        if ("force-error".equals(scenario)) {
+                            responseObserver.onNext(UploadPipeDocStreamResponse.newBuilder()
+                                    .setSuccess(false)
+                                    .setMessage("Forced error via mock trigger")
+                                    .setRetryable(true)
+                                    .setRef(DocReference.newBuilder()
+                                            .setSourceDocId(item.getSourceDocId())
+                                            .build())
+                                    .build());
+                            return;
+                        }
+                        String docId = mockDocId(datasourceIdHolder[0], item.getSourceDocId(),
+                                item.getPipeDoc().getDocId());
+                        responseObserver.onNext(UploadPipeDocStreamResponse.newBuilder()
+                                .setSuccess(true)
+                                .setMessage("uploaded by mock")
+                                .setRef(DocReference.newBuilder()
+                                        .setSourceDocId(item.getSourceDocId())
+                                        .setDocId(docId)
+                                        .build())
+                                .build());
+                        return;
+                    }
+                    if (req.hasDeleteRef()) {
+                        responseObserver.onNext(UploadPipeDocStreamResponse.newBuilder()
+                                .setSuccess(true)
+                                .setMessage("delete acknowledged by mock")
+                                .setRef(req.getDeleteRef())
+                                .build());
+                        return;
+                    }
+                    responseObserver.onNext(UploadPipeDocStreamResponse.newBuilder()
+                            .setSuccess(false)
+                            .setMessage("unrecognized stream payload")
+                            .setRetryable(false)
+                            .build());
+                }
+
+                @Override
+                public void onError(Throwable t) {
+                    LOG.warn("ConnectorIntakeMock stream client error: " + t.getMessage());
+                }
+
+                @Override
+                public void onCompleted() {
+                    responseObserver.onCompleted();
+                }
+            };
+        }
+
+        /**
+         * Builds a deterministic mock doc_id of the shape the real intake
+         * service produces — datasource_id colon source_doc_id, with a
+         * fallback to whatever the client passed in if both are empty.
+         * Tests asserting on doc_id can rely on this format.
+         */
+        private static String mockDocId(String datasourceId, String sourceDocId, String fallback) {
+            if (datasourceId != null && !datasourceId.isEmpty()
+                    && sourceDocId != null && !sourceDocId.isEmpty()) {
+                return datasourceId + ":" + sourceDocId;
+            }
+            if (fallback != null && !fallback.isEmpty()) {
+                return fallback;
+            }
+            return "mock-intake-doc-" + System.nanoTime();
         }
     }
 }
