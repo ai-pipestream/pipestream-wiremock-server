@@ -37,6 +37,7 @@ public class DirectWireMockGrpcServer {
     public static final Context.Key<String> TEST_SCENARIO_KEY = Context.key("test-scenario");
     public static final Context.Key<String> TEST_DOC_ID_KEY = Context.key("test-doc-id");
     public static final Context.Key<Integer> TEST_DELAY_MS_KEY = Context.key("test-delay-ms");
+    public static final Context.Key<Double> TEST_BULK_FAIL_RATE_KEY = Context.key("test-bulk-fail-rate");
 
     // Metadata keys that clients send as headers
     private static final Metadata.Key<String> SCENARIO_HEADER =
@@ -47,6 +48,8 @@ public class DirectWireMockGrpcServer {
             Metadata.Key.of("x-test-delay-ms", Metadata.ASCII_STRING_MARSHALLER);
     private static final Metadata.Key<String> FORCE_ERROR_HEADER =
             Metadata.Key.of("x-force-error", Metadata.ASCII_STRING_MARSHALLER);
+    private static final Metadata.Key<String> BULK_FAIL_RATE_HEADER =
+            Metadata.Key.of("x-bulk-fail-rate", Metadata.ASCII_STRING_MARSHALLER);
 
     /**
      * Interceptor that extracts test routing metadata from gRPC headers
@@ -91,6 +94,14 @@ public class DirectWireMockGrpcServer {
                 } catch (NumberFormatException ignored) {
                     // Ignore invalid delay values
                 }
+            }
+
+            String failRateStr = headers.get(BULK_FAIL_RATE_HEADER);
+            if (failRateStr != null) {
+                try {
+                    double failRate = Double.parseDouble(failRateStr);
+                    ctx = ctx.withValue(TEST_BULK_FAIL_RATE_KEY, failRate);
+                } catch (NumberFormatException ignored) {}
             }
             
             String forceError = headers.get(FORCE_ERROR_HEADER);
@@ -346,6 +357,9 @@ public class DirectWireMockGrpcServer {
 
     private static class OpenSearchManagerServiceImpl extends OpenSearchManagerServiceGrpc.OpenSearchManagerServiceImplBase {
 
+        private static final Metadata.Key<String> BULK_FAIL_RATE_HEADER =
+                Metadata.Key.of("x-bulk-fail-rate", Metadata.ASCII_STRING_MARSHALLER);
+
         @Override
         public void indexDocument(IndexDocumentRequest request, StreamObserver<IndexDocumentResponse> responseObserver) {
             LOG.infof("DirectWireMockGrpcServer: indexDocument index=%s id=%s", request.getIndexName(), request.getDocumentId());
@@ -393,14 +407,51 @@ public class DirectWireMockGrpcServer {
         }
 
         @Override
+        public void provisionIndex(ProvisionIndexRequest request, StreamObserver<ProvisionIndexResponse> responseObserver) {
+            LOG.infof("DirectWireMockGrpcServer: provisionIndex index=%s", request.getIndexName());
+            
+            String scenario = TEST_SCENARIO_KEY.get();
+            if ("force-error".equals(scenario) || request.getIndexName().contains("fail-this-index")) {
+                responseObserver.onNext(ProvisionIndexResponse.newBuilder()
+                        .setSuccess(false)
+                        .setMessage("Forced provisioning error via mock trigger")
+                        .build());
+                responseObserver.onCompleted();
+                return;
+            }
+
+            ProvisionIndexResponse.Builder responseBuilder = ProvisionIndexResponse.newBuilder()
+                    .setSuccess(true)
+                    .setMessage("Provisioned via WireMock High-Fidelity Mock");
+
+            // Echo back indices that would be created
+            responseBuilder.addIndicesCreated(request.getIndexName());
+            for (String scId : request.getSemanticConfigIdsList()) {
+                responseBuilder.addIndicesCreated(request.getIndexName() + "--vs--" + scId);
+            }
+            responseBuilder.setBindingsProvisioned(request.getSemanticConfigIdsCount());
+
+            responseObserver.onNext(responseBuilder.build());
+            responseObserver.onCompleted();
+        }
+
+        @Override
         public StreamObserver<StreamIndexDocumentsRequest> streamIndexDocuments(StreamObserver<StreamIndexDocumentsResponse> responseObserver) {
+            Double failRateObj = TEST_BULK_FAIL_RATE_KEY.get();
+            double failRate = failRateObj != null ? failRateObj : 0.0;
+            String scenario = TEST_SCENARIO_KEY.get();
+
             return new StreamObserver<StreamIndexDocumentsRequest>() {
                 @Override
                 public void onNext(StreamIndexDocumentsRequest request) {
                     LOG.debugf("DirectWireMockGrpcServer: streamIndexDocuments index=%s id=%s", request.getIndexName(), request.getDocumentId());
                     
-                    String scenario = TEST_SCENARIO_KEY.get();
-                    if ("force-error".equals(scenario) || "fail-this-doc".equals(request.getDocumentId()) || request.getIndexName().contains("fail-this-index")) {
+                    boolean shouldFail = "force-error".equals(scenario) 
+                            || "fail-this-doc".equals(request.getDocumentId()) 
+                            || request.getIndexName().contains("fail-this-index")
+                            || (failRate > 0 && Math.random() < failRate);
+
+                    if (shouldFail) {
                         responseObserver.onNext(StreamIndexDocumentsResponse.newBuilder()
                                 .setRequestId(request.getRequestId())
                                 .setSuccess(false)
