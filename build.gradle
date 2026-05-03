@@ -15,7 +15,7 @@ plugins {
     alias(libs.plugins.shadow)
     alias(libs.plugins.proto.toolchain)
     id 'idea'
-    id 'io.quarkus' version '3.34.6'
+    id 'io.quarkus' version '3.35.1'
 }
 
 scmVersion {
@@ -66,14 +66,14 @@ pipestreamProtos {
     modules {
         register("all") {
             gitRepo = "https://github.com/ai-pipestream/pipestream-protos.git"
-            gitRef = "feat/intake-streaming-context-fields"
+            gitRef = "bom/engine-refactor-pr0"
             gitSubdir = "."
         }
     }
 }
 
 dependencies {
-    implementation enforcedPlatform("io.quarkus.platform:quarkus-bom:3.34.6")
+    implementation enforcedPlatform("io.quarkus.platform:quarkus-bom:3.35.1")
     implementation 'io.quarkus:quarkus-arc'
 
     implementation libs.wiremock.core
