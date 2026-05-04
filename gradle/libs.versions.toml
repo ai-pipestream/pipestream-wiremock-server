@@ -20,7 +20,7 @@ proto-toolchain = "0.7.21"
 axion-release = "1.21.1"
 jib = "3.5.3"
 protobuf-plugin = "0.10.0"
-nmcp = "1.4.4"
+nmcp = "1.5.0"
 
 [libraries]
 wiremock-core = { module = "org.wiremock:wiremock", version.ref = "wiremock" }
