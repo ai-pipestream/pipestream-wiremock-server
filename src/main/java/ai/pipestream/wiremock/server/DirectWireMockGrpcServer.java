@@ -127,6 +127,9 @@ public class DirectWireMockGrpcServer {
                 .addService(new AccountServiceStreamingImpl())
                 .addService(new OpenSearchManagerServiceImpl())
                 .addService(new ConnectorIntakeServiceImpl())
+                .addService(new ChunkerConfigServiceImpl())
+                .addService(new EmbeddingConfigServiceImpl())
+                .addService(new VectorSetServiceImpl())
                 .addService(new HealthImpl())
                 .addService(ProtoReflectionServiceV1.newInstance())
                 .build();
@@ -491,6 +494,45 @@ public class DirectWireMockGrpcServer {
                                 }
                             }
                         }
+
+                        // VectorSet registration validation: only triggers when
+                        // the inbound row carries the (source_field, chunker,
+                        // embedder) tuple. Pre-existing tests that send only a
+                        // source_field without chunker/embedder ids skip this
+                        // check and pass through (lookupKey returns null).
+                        String key = MockServiceState.lookupKey(
+                                set.getSourceFieldName(),
+                                set.getChunkConfigId(),
+                                set.getEmbeddingId());
+                        if (key != null) {
+                            VectorSet registered = MockServiceState.get()
+                                    .getVectorSetByLookup(set.getSourceFieldName(),
+                                            set.getChunkConfigId(),
+                                            set.getEmbeddingId());
+                            if (registered == null) {
+                                responseObserver.onNext(StreamIndexDocumentsResponse.newBuilder()
+                                        .setRequestId(request.getRequestId())
+                                        .setSuccess(false)
+                                        .setMessage("VectorSet '" + key + "' not found. "
+                                                + "Call CreateVectorSet (chunker="
+                                                + set.getChunkConfigId() + ", embedder="
+                                                + set.getEmbeddingId()
+                                                + ") and BindVectorSetToIndex before indexing.")
+                                        .build());
+                                return;
+                            }
+                            if (!MockServiceState.get().hasBinding(registered.getId(),
+                                    request.getIndexName())) {
+                                responseObserver.onNext(StreamIndexDocumentsResponse.newBuilder()
+                                        .setRequestId(request.getRequestId())
+                                        .setSuccess(false)
+                                        .setMessage("VectorSet '" + key
+                                                + "' not bound to index '" + request.getIndexName()
+                                                + "'. Call BindVectorSetToIndex before indexing.")
+                                        .build());
+                                return;
+                            }
+                        }
                     }
 
                     responseObserver.onNext(StreamIndexDocumentsResponse.newBuilder()
@@ -819,6 +861,158 @@ public class DirectWireMockGrpcServer {
                 return fallback;
             }
             return "mock-intake-doc-" + System.nanoTime();
+        }
+    }
+
+    /**
+     * In-memory mock for {@code ChunkerConfigService}. Stores configs in
+     * {@link MockServiceState} so {@code VectorSetService.CreateVectorSet}
+     * and {@code OpenSearchManagerService.streamIndexDocuments} can resolve
+     * them. Only the create-side methods are needed by the sink test path.
+     */
+    private static class ChunkerConfigServiceImpl
+            extends ChunkerConfigServiceGrpc.ChunkerConfigServiceImplBase {
+
+        @Override
+        public void createChunkerConfig(CreateChunkerConfigRequest request,
+                                         StreamObserver<CreateChunkerConfigResponse> responseObserver) {
+            String id = request.hasId() && !request.getId().isEmpty()
+                    ? request.getId()
+                    : java.util.UUID.randomUUID().toString();
+            ChunkerConfig stored = ChunkerConfig.newBuilder()
+                    .setId(id)
+                    .setName(request.getName())
+                    .setConfigId(request.hasConfigId() ? request.getConfigId() : request.getName())
+                    .build();
+            MockServiceState.get().putChunkerConfig(stored);
+            responseObserver.onNext(CreateChunkerConfigResponse.newBuilder()
+                    .setConfig(stored)
+                    .build());
+            responseObserver.onCompleted();
+        }
+
+        @Override
+        public void getChunkerConfig(GetChunkerConfigRequest request,
+                                      StreamObserver<GetChunkerConfigResponse> responseObserver) {
+            ChunkerConfig found = MockServiceState.get().getChunkerConfig(request.getId());
+            if (found == null) {
+                responseObserver.onError(Status.NOT_FOUND
+                        .withDescription("ChunkerConfig '" + request.getId() + "' not found")
+                        .asRuntimeException());
+                return;
+            }
+            responseObserver.onNext(GetChunkerConfigResponse.newBuilder()
+                    .setConfig(found).build());
+            responseObserver.onCompleted();
+        }
+    }
+
+    /**
+     * In-memory mock for {@code EmbeddingConfigService}. Mirrors
+     * {@link ChunkerConfigServiceImpl} for embedding model configs.
+     */
+    private static class EmbeddingConfigServiceImpl
+            extends EmbeddingConfigServiceGrpc.EmbeddingConfigServiceImplBase {
+
+        @Override
+        public void createEmbeddingModelConfig(CreateEmbeddingModelConfigRequest request,
+                                                 StreamObserver<CreateEmbeddingModelConfigResponse> responseObserver) {
+            String id = request.hasId() && !request.getId().isEmpty()
+                    ? request.getId()
+                    : java.util.UUID.randomUUID().toString();
+            EmbeddingModelConfig stored = EmbeddingModelConfig.newBuilder()
+                    .setId(id)
+                    .setName(request.getName())
+                    .setModelIdentifier(request.getModelIdentifier())
+                    .setDimensions(request.hasDimensions() ? request.getDimensions() : 384)
+                    .build();
+            MockServiceState.get().putEmbeddingConfig(stored);
+            responseObserver.onNext(CreateEmbeddingModelConfigResponse.newBuilder()
+                    .setConfig(stored)
+                    .build());
+            responseObserver.onCompleted();
+        }
+
+        @Override
+        public void getEmbeddingModelConfig(GetEmbeddingModelConfigRequest request,
+                                              StreamObserver<GetEmbeddingModelConfigResponse> responseObserver) {
+            EmbeddingModelConfig found = MockServiceState.get().getEmbeddingConfig(request.getId());
+            if (found == null) {
+                responseObserver.onError(Status.NOT_FOUND
+                        .withDescription("EmbeddingModelConfig '" + request.getId() + "' not found")
+                        .asRuntimeException());
+                return;
+            }
+            responseObserver.onNext(GetEmbeddingModelConfigResponse.newBuilder()
+                    .setConfig(found).build());
+            responseObserver.onCompleted();
+        }
+    }
+
+    /**
+     * In-memory mock for {@code VectorSetService}. Stores recipes by name
+     * AND by the {@code <sourceField>_<chunker>_<embedder>} lookup key so
+     * the streaming index-documents path can validate inbound semantic
+     * tuples. Bind operations record into the bindings set; subsequent
+     * unbinds remove from it.
+     */
+    private static class VectorSetServiceImpl
+            extends VectorSetServiceGrpc.VectorSetServiceImplBase {
+
+        @Override
+        public void createVectorSet(CreateVectorSetRequest request,
+                                     StreamObserver<CreateVectorSetResponse> responseObserver) {
+            String id = request.hasId() && !request.getId().isEmpty()
+                    ? request.getId()
+                    : java.util.UUID.randomUUID().toString();
+            String resultSetName = request.hasResultSetName() && !request.getResultSetName().isEmpty()
+                    ? request.getResultSetName()
+                    : "default";
+            VectorSet.Builder b = VectorSet.newBuilder()
+                    .setId(id)
+                    .setName(request.getName())
+                    .setEmbeddingModelConfigId(request.getEmbeddingModelConfigId())
+                    .setFieldName(request.getFieldName())
+                    .setResultSetName(resultSetName)
+                    .setSourceField(request.getSourceField())
+                    .setIndexName(request.getIndexName());
+            if (request.hasChunkerConfigId()) {
+                b.setChunkerConfigId(request.getChunkerConfigId());
+            }
+            if (request.hasSourceCel()) {
+                b.setSourceCel(request.getSourceCel());
+            }
+            VectorSet stored = b.build();
+            MockServiceState.get().putVectorSet(stored);
+            // The proto version this branch consumes does not split recipe
+            // and binding — index_name is required on CreateVectorSetRequest
+            // and the create call IS the bind. Record the (vs, index)
+            // binding here so streamIndexDocuments validation can verify
+            // it on the way in.
+            if (!request.getIndexName().isEmpty()) {
+                MockServiceState.get().putBinding(stored.getId(), request.getIndexName());
+            }
+            responseObserver.onNext(CreateVectorSetResponse.newBuilder()
+                    .setVectorSet(stored).build());
+            responseObserver.onCompleted();
+        }
+
+        @Override
+        public void getVectorSet(GetVectorSetRequest request,
+                                  StreamObserver<GetVectorSetResponse> responseObserver) {
+            boolean byName = request.hasByName() && request.getByName();
+            VectorSet found = byName
+                    ? MockServiceState.get().getVectorSetByName(request.getId())
+                    : MockServiceState.get().getVectorSetById(request.getId());
+            if (found == null) {
+                responseObserver.onError(Status.NOT_FOUND
+                        .withDescription("VectorSet '" + request.getId() + "' not found")
+                        .asRuntimeException());
+                return;
+            }
+            responseObserver.onNext(GetVectorSetResponse.newBuilder()
+                    .setVectorSet(found).build());
+            responseObserver.onCompleted();
         }
     }
 }
