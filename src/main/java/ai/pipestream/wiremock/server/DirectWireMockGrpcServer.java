@@ -15,6 +15,7 @@ import ai.pipestream.opensearch.v1.*;
 import ai.pipestream.schemamanager.v1.EnsureNestedEmbeddingsFieldExistsRequest;
 import ai.pipestream.schemamanager.v1.EnsureNestedEmbeddingsFieldExistsResponse;
 import ai.pipestream.connector.intake.v1.*;
+import ai.pipestream.engine.v1.*;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -126,6 +127,7 @@ public class DirectWireMockGrpcServer {
                 .addService(new NodeUploadServiceImpl())
                 .addService(new AccountServiceStreamingImpl())
                 .addService(new OpenSearchManagerServiceImpl())
+                .addService(new EngineV1ServiceImpl())
                 .addService(new ConnectorIntakeServiceImpl())
                 .addService(new ChunkerConfigServiceImpl())
                 .addService(new EmbeddingConfigServiceImpl())
@@ -589,6 +591,88 @@ public class DirectWireMockGrpcServer {
                     .setSchemaExisted(false)
                     .build());
             responseObserver.onCompleted();
+        }
+    }
+
+    /**
+     * Direct mock for {@code EngineV1Service} streaming RPCs. WireMock's
+     * gRPC extension handles unary engine calls; this server owns the bidi
+     * handoff lane used by connector-intake and the Kafka sidecar.
+     *
+     * <p>Supported {@code x-test-scenario} values:
+     * <ul>
+     *   <li>{@code retryable-reject}: send STATUS_RETRYABLE_REJECTED</li>
+     *   <li>{@code permanent-reject}: send STATUS_PERMANENT_REJECTED</li>
+     *   <li>{@code no-ack}: accept request messages but never ack them</li>
+     *   <li>{@code stream-error} or {@code force-error}: fail stream with UNAVAILABLE</li>
+     *   <li>anything else: send STATUS_ACCEPTED</li>
+     * </ul>
+     */
+    private static class EngineV1ServiceImpl extends EngineV1ServiceGrpc.EngineV1ServiceImplBase {
+
+        @Override
+        public StreamObserver<IntakeHandoffStreamRequest> intakeHandoffStream(
+                StreamObserver<IntakeHandoffStreamResponse> responseObserver) {
+            String scenario = TEST_SCENARIO_KEY.get();
+            java.util.concurrent.atomic.AtomicBoolean closed = new java.util.concurrent.atomic.AtomicBoolean();
+            return new StreamObserver<>() {
+                @Override
+                public void onNext(IntakeHandoffStreamRequest request) {
+                    LOG.debugf("EngineV1Mock intakeHandoffStream handoff=%s seq=%d scenario=%s",
+                            request.getHandoffId(), request.getSequence(), scenario);
+                    if ("stream-error".equals(scenario) || "force-error".equals(scenario)) {
+                        closed.set(true);
+                        responseObserver.onError(Status.UNAVAILABLE
+                                .withDescription("Forced engine stream error via mock trigger")
+                                .asRuntimeException());
+                        return;
+                    }
+                    if ("no-ack".equals(scenario)) {
+                        return;
+                    }
+
+                    IntakeHandoffStreamResponse.Status status = switch (scenario == null ? "" : scenario) {
+                        case "retryable-reject" -> IntakeHandoffStreamResponse.Status.STATUS_RETRYABLE_REJECTED;
+                        case "permanent-reject" -> IntakeHandoffStreamResponse.Status.STATUS_PERMANENT_REJECTED;
+                        default -> IntakeHandoffStreamResponse.Status.STATUS_ACCEPTED;
+                    };
+                    boolean accepted = status == IntakeHandoffStreamResponse.Status.STATUS_ACCEPTED;
+                    IntakeHandoffResponse response = IntakeHandoffResponse.newBuilder()
+                            .setAccepted(accepted)
+                            .setAssignedStreamId(accepted ? "mock-engine-stream-" + request.getSequence() : "")
+                            .setEntryNodeId(accepted ? "mock-entry-node" : "")
+                            .setMessage(engineHandoffMessage(status))
+                            .build();
+
+                    responseObserver.onNext(IntakeHandoffStreamResponse.newBuilder()
+                            .setHandoffId(request.getHandoffId())
+                            .setSequence(request.getSequence())
+                            .setStatus(status)
+                            .setResponse(response)
+                            .build());
+                }
+
+                @Override
+                public void onError(Throwable t) {
+                    LOG.warn("EngineV1Mock intakeHandoffStream client error: " + t.getMessage());
+                }
+
+                @Override
+                public void onCompleted() {
+                    if (closed.compareAndSet(false, true)) {
+                        responseObserver.onCompleted();
+                    }
+                }
+            };
+        }
+
+        private static String engineHandoffMessage(IntakeHandoffStreamResponse.Status status) {
+            return switch (status) {
+                case STATUS_ACCEPTED -> "Engine stream handoff accepted by mock";
+                case STATUS_RETRYABLE_REJECTED -> "Engine stream handoff retryable rejection by mock";
+                case STATUS_PERMANENT_REJECTED -> "Engine stream handoff permanent rejection by mock";
+                default -> "Engine stream handoff returned unexpected status by mock";
+            };
         }
     }
 
