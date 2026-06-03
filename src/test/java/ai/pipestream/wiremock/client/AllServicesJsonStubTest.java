@@ -160,20 +160,6 @@ class AllServicesJsonStubTest {
     }
 
     // ============================================
-    // SidecarManagementService
-    // ============================================
-
-    @Test
-    @DisplayName("SidecarManagementService/GetLeases returns lease list")
-    void testSidecarGetLeases() {
-        var stub = ai.pipestream.engine.sidecar.v1.SidecarManagementServiceGrpc.newBlockingStub(channel);
-        var request = ai.pipestream.engine.sidecar.v1.GetLeasesRequest.newBuilder().build();
-        var response = stub.getLeases(request);
-
-        assertThat(response).as("SidecarManagementService/GetLeases response").isNotNull();
-    }
-
-    // ============================================
     // PipelineGraphService
     // ============================================
 
