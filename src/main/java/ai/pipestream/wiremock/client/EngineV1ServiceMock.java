@@ -20,7 +20,6 @@ import static org.wiremock.grpc.dsl.WireMockGrpc.message;
  * This mock supports testing of engine intake and processing scenarios for the Kafka Sidecar including:
  * <ul>
  *   <li><b>IntakeHandoff</b>: Accept or reject stream handoffs from the sidecar</li>
- *   <li><b>ProcessNode</b>: Process a node and return success/failure with updated stream</li>
  *   <li><b>Error scenarios</b>: Return UNAVAILABLE for retry testing, rejection for DLQ testing</li>
  * </ul>
  * <p>
@@ -35,7 +34,6 @@ import static org.wiremock.grpc.dsl.WireMockGrpc.message;
  * mock.mockIntakeHandoffRejected("Queue full");
  *
  * // Mock successful node processing
- * mock.mockProcessNodeSuccess(updatedStream);
  *
  * // Mock engine unavailable for retry testing
  * mock.mockIntakeHandoffUnavailable();
@@ -80,7 +78,6 @@ public class EngineV1ServiceMock implements ServiceMockInitializer {
 
         // Set up default successful responses
         mockIntakeHandoffAccepted();
-        mockProcessNodeSuccess();
 
         LOG.info("Added default stubs for EngineV1Service");
     }
@@ -199,134 +196,6 @@ public class EngineV1ServiceMock implements ServiceMockInitializer {
         );
 
         LOG.debug("Configured IntakeHandoff to reject (queue full, depth={})", queueDepth);
-    }
-
-    // ============================================
-    // ProcessNode Mocks
-    // ============================================
-
-    /**
-     * Mock ProcessNode to return success with no stream updates.
-     */
-    public void mockProcessNodeSuccess() {
-        ProcessNodeResponse response = ProcessNodeResponse.newBuilder()
-                .setSuccess(true)
-                .setMessage("Node processed successfully")
-                .setModuleId("mock-module")
-                .setProcessingTimeMs(42)
-                .addLogEntries(mockLogEntry("Mock module processed successfully"))
-                .build();
-
-        engineService.stubFor(
-                method("ProcessNode")
-                        .willReturn(message(response))
-        );
-
-        LOG.debug("Configured ProcessNode to return success");
-    }
-
-    /**
-     * Mock ProcessNode to return success with a completed_at timestamp.
-     */
-    public void mockProcessNodeSuccessWithTimestamp() {
-        ProcessNodeResponse response = ProcessNodeResponse.newBuilder()
-                .setSuccess(true)
-                .setMessage("Node processed successfully")
-                .setCompletedAt(Timestamps.fromMillis(System.currentTimeMillis()))
-                .setModuleId("mock-module")
-                .setProcessingTimeMs(42)
-                .addLogEntries(mockLogEntry("Mock module processed successfully"))
-                .build();
-
-        engineService.stubFor(
-                method("ProcessNode")
-                        .willReturn(message(response))
-        );
-
-        LOG.debug("Configured ProcessNode to return success with timestamp");
-    }
-
-    /**
-     * Mock ProcessNode to return success with an output document (test mode).
-     * <p>
-     * Simulates the engine's test-mode behavior where the processed document
-     * is returned in output_doc for chain test document chaining.
-     *
-     * @param outputDoc The processed document to return
-     */
-    public void mockProcessNodeSuccessWithOutputDoc(PipeDoc outputDoc) {
-        ProcessNodeResponse response = ProcessNodeResponse.newBuilder()
-                .setSuccess(true)
-                .setMessage("Node processed successfully")
-                .setCompletedAt(Timestamps.fromMillis(System.currentTimeMillis()))
-                .setOutputDoc(outputDoc)
-                .setModuleId("mock-module")
-                .setProcessingTimeMs(42)
-                .addLogEntries(mockLogEntry("Mock module processed document " + outputDoc.getDocId()))
-                .build();
-
-        engineService.stubFor(
-                method("ProcessNode")
-                        .willReturn(message(response))
-        );
-
-        LOG.debug("Configured ProcessNode to return success with output document");
-    }
-
-    /**
-     * Mock ProcessNode to return failure.
-     *
-     * @param errorMessage Error message
-     */
-    public void mockProcessNodeFailure(String errorMessage) {
-        ProcessNodeResponse response = ProcessNodeResponse.newBuilder()
-                .setSuccess(false)
-                .setMessage(errorMessage)
-                .build();
-
-        engineService.stubFor(
-                method("ProcessNode")
-                        .willReturn(message(response))
-        );
-
-        LOG.debug("Configured ProcessNode to return failure: {}", errorMessage);
-    }
-
-    private static LogEntry mockLogEntry(String message) {
-        return LogEntry.newBuilder()
-                .setSource(LogEntrySource.LOG_ENTRY_SOURCE_MODULE)
-                .setLevel(LogLevel.LOG_LEVEL_INFO)
-                .setMessage(message)
-                .setTimestampEpochMs(System.currentTimeMillis())
-                .setModule(ModuleLogOrigin.newBuilder().setModuleName("mock-module").build())
-                .build();
-    }
-
-    /**
-     * Mock ProcessNode to return UNAVAILABLE for retry testing.
-     */
-    public void mockProcessNodeUnavailable() {
-        engineService.stubFor(
-                method("ProcessNode")
-                        .willReturn(WireMockGrpc.Status.UNAVAILABLE,
-                                "Engine temporarily unavailable")
-        );
-
-        LOG.debug("Configured ProcessNode to return UNAVAILABLE");
-    }
-
-    /**
-     * Mock ProcessNode to return INTERNAL error.
-     *
-     * @param errorMessage Error message
-     */
-    public void mockProcessNodeInternalError(String errorMessage) {
-        engineService.stubFor(
-                method("ProcessNode")
-                        .willReturn(WireMockGrpc.Status.INTERNAL, errorMessage)
-        );
-
-        LOG.debug("Configured ProcessNode to return INTERNAL error: {}", errorMessage);
     }
 
     // ============================================
