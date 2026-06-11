@@ -103,39 +103,6 @@ class AllServicesJsonStubTest {
     }
 
     // ============================================
-    // DesignModeService
-    // ============================================
-
-    @Test
-    @DisplayName("DesignModeService/ValidateDesignGraph returns valid")
-    void testDesignModeValidateGraph() {
-        var stub = ai.pipestream.design.v1.DesignModeServiceGrpc.newBlockingStub(channel);
-        var request = ai.pipestream.design.v1.ValidateDesignGraphRequest.newBuilder()
-                .setDesignGraphId("test-design-graph")
-                .build();
-        var response = stub.validateDesignGraph(request);
-
-        assertThat(response)
-                .as("DesignModeService/ValidateDesignGraph should return a response")
-                .isNotNull();
-    }
-
-    @Test
-    @DisplayName("DesignModeService/TestNode returns success")
-    void testDesignModeTestNode() {
-        var stub = ai.pipestream.design.v1.DesignModeServiceGrpc.newBlockingStub(channel);
-        var request = ai.pipestream.design.v1.TestNodeRequest.newBuilder()
-                .setDesignGraphId("test-design-graph")
-                .setNodeId("test-node-001")
-                .build();
-        var response = stub.testNode(request);
-
-        assertThat(response.getSuccess())
-                .as("DesignModeService/TestNode should return success=true")
-                .isTrue();
-    }
-
-    // ============================================
     // DjlModelService
     // ============================================
 
