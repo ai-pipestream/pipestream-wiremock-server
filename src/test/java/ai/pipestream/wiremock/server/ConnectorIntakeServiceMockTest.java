@@ -111,7 +111,6 @@ class ConnectorIntakeServiceMockTest {
     void uploadPipeDoc_happyPath_returnsDeterministicDocId() {
         UploadPipeDocRequest req = UploadPipeDocRequest.newBuilder()
                 .setDatasourceId("ds-test")
-                .setApiKey("test-api-key")
                 .setSourceDocId("src-001")
                 .setPipeDoc(PipeDoc.newBuilder().setDocId("client-supplied-id").build())
                 .build();
@@ -133,7 +132,6 @@ class ConnectorIntakeServiceMockTest {
 
         UploadPipeDocRequest req = UploadPipeDocRequest.newBuilder()
                 .setDatasourceId("ds-test")
-                .setApiKey("test-api-key")
                 .setSourceDocId("src-002")
                 .build();
 
@@ -149,7 +147,6 @@ class ConnectorIntakeServiceMockTest {
     void uploadBlob_happyPath_returnsDeterministicDocId() {
         UploadBlobRequest req = UploadBlobRequest.newBuilder()
                 .setDatasourceId("ds-test")
-                .setApiKey("test-api-key")
                 .setSourceDocId("blob-001")
                 .setContent(ByteString.copyFromUtf8("hello"))
                 .build();
@@ -165,7 +162,6 @@ class ConnectorIntakeServiceMockTest {
     void deletePipeDoc_alwaysAcksSuccess() {
         DeletePipeDocRequest req = DeletePipeDocRequest.newBuilder()
                 .setDatasourceId("ds-test")
-                .setApiKey("test-api-key")
                 .setRef(DocReference.newBuilder().setDocId("ds-test:src-007").build())
                 .build();
 
@@ -179,7 +175,6 @@ class ConnectorIntakeServiceMockTest {
     void startCrawlSession_echoesProvidedCrawlId() {
         StartCrawlSessionRequest req = StartCrawlSessionRequest.newBuilder()
                 .setDatasourceId("ds-test")
-                .setApiKey("test-api-key")
                 .setCrawlId("my-crawl-42")
                 .build();
 
@@ -197,7 +192,6 @@ class ConnectorIntakeServiceMockTest {
     void startCrawlSession_generatesCrawlIdWhenMissing() {
         StartCrawlSessionRequest req = StartCrawlSessionRequest.newBuilder()
                 .setDatasourceId("ds-test")
-                .setApiKey("test-api-key")
                 // crawl_id intentionally not set
                 .build();
 
@@ -258,7 +252,6 @@ class ConnectorIntakeServiceMockTest {
         requestObs.onNext(UploadPipeDocStreamRequest.newBuilder()
                 .setContext(StreamContext.newBuilder()
                         .setDatasourceId("ds-test")
-                        .setApiKey("test-api-key")
                         .setCrawlId("crawl-stream-001")
                         .setSubCrawlIndex(0)
                         .setTotalSubCrawls(1)
@@ -314,7 +307,6 @@ class ConnectorIntakeServiceMockTest {
         requestObs.onNext(UploadPipeDocStreamRequest.newBuilder()
                 .setContext(StreamContext.newBuilder()
                         .setDatasourceId("ds-test")
-                        .setApiKey("test-api-key")
                         .build())
                 .build());
         requestObs.onNext(UploadPipeDocStreamRequest.newBuilder()
@@ -352,7 +344,6 @@ class ConnectorIntakeServiceMockTest {
         requestObs.onNext(UploadPipeDocStreamRequest.newBuilder()
                 .setContext(StreamContext.newBuilder()
                         .setDatasourceId("ds-test")
-                        .setApiKey("bad-key")
                         .build())
                 .build());
 
@@ -375,7 +366,6 @@ class ConnectorIntakeServiceMockTest {
         requestObs.onNext(UploadPipeDocStreamRequest.newBuilder()
                 .setContext(StreamContext.newBuilder()
                         .setDatasourceId("ds-test")
-                        .setApiKey("test-api-key")
                         .build())
                 .build());
         requestObs.onNext(UploadPipeDocStreamRequest.newBuilder()
@@ -411,7 +401,6 @@ class ConnectorIntakeServiceMockTest {
         requestObs.onNext(UploadPipeDocStreamRequest.newBuilder()
                 .setContext(StreamContext.newBuilder()
                         .setDatasourceId("ds-batch")
-                        .setApiKey("test-api-key")
                         .setCrawlId("bulk-crawl-001")
                         .setSubCrawlIndex(0)
                         .setTotalSubCrawls(1)
