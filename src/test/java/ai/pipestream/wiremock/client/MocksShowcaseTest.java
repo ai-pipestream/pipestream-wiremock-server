@@ -91,7 +91,6 @@ public class MocksShowcaseTest {
 
         UploadPipeDocRequest request = UploadPipeDocRequest.newBuilder()
                 .setDatasourceId(dsId)
-                .setApiKey("key-123")
                 .setSourceDocId(sourceId)
                 .setPipeDoc(ai.pipestream.data.v1.PipeDoc.newBuilder().build())
                 .build();
