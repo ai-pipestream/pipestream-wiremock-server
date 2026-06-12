@@ -15,11 +15,11 @@
 #
 ###
 
-FROM registry.access.redhat.com/ubi9-minimal:9.5
+FROM registry.access.redhat.com/ubi10-minimal:10.2
 
 # Install Java 21 runtime
 RUN microdnf install -y \
-    java-21-openjdk-headless \
+    java-25-openjdk-headless \
     ca-certificates \
     && microdnf update -y \
     && microdnf clean all \
