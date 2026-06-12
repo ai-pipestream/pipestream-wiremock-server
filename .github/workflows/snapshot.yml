@@ -54,7 +54,22 @@ jobs:
           path: build/reports/tests/test/
           retention-days: 5
 
+      # When the release workflow tags main HEAD (vX.Y.Z), axion resolves a
+      # RELEASE version for this same commit and the snapshots repo rejects
+      # it with HTTP 400 (versions must end in -SNAPSHOT). Skip publishing
+      # for tagged commits — the release workflow owns those artifacts.
+      - name: Detect release-tagged HEAD
+        id: reltag
+        run: |
+          if git describe --exact-match --match 'v*' --tags HEAD >/dev/null 2>&1; then
+            echo "release_tag=true" >> "$GITHUB_OUTPUT"
+            echo "HEAD is release-tagged; snapshot publishing will be skipped"
+          else
+            echo "release_tag=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Publish Snapshots to Maven Central
+        if: steps.reltag.outputs.release_tag != 'true'
         env:
           MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
@@ -63,6 +78,7 @@ jobs:
         run: ./gradlew publishAllPublicationsToCentralPortalSnapshots --no-daemon --configuration-cache
 
       - name: Publish Snapshots to GitHub Packages
+        if: steps.reltag.outputs.release_tag != 'true'
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
