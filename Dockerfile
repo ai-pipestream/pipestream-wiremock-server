@@ -1,5 +1,5 @@
 # Stage 1: Build
-FROM eclipse-temurin:21-jdk-alpine AS builder
+FROM eclipse-temurin:25-jdk-alpine AS builder
 
 # Install build dependencies:
 # - git: Required by ai.pipestream.proto-toolchain to clone proto repositories
@@ -25,7 +25,7 @@ ARG APP_VERSION=latest
 RUN ./gradlew shadowJar -Pversion=${APP_VERSION} --no-daemon --info
 
 # Stage 2: Runtime
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:25-jre-alpine
 
 LABEL maintainer="Pipestream Engine Team"
 LABEL project="pipestream-wiremock-server"
